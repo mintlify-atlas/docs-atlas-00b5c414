@@ -111,7 +111,8 @@
               "api/data-sources/create",
               "api/data-sources/retrieve",
               "api/data-sources/update",
-              "api/data-sources/query"
+              "api/data-sources/query",
+              "api/data-sources/list-templates"
             ]
           },
           {
@@ -134,6 +135,7 @@
             "group": "File Uploads",
             "pages": [
               "api/file-uploads/create",
+              "api/file-uploads/retrieve",
               "api/file-uploads/send",
               "api/file-uploads/complete",
               "api/file-uploads/list"

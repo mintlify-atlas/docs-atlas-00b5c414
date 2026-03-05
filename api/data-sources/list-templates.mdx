@@ -1,0 +1,159 @@
+---
+title: "List data source templates"
+description: "Get available page templates for a data source"
+---
+
+Retrieves a list of page templates that are available for creating pages within a data source. Templates define the structure and initial content for new pages.
+
+## Method
+
+```typescript
+client.dataSources.listTemplates({
+  data_source_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af"
+})
+```
+
+## Parameters
+
+<ParamField path="data_source_id" type="string" required>
+  Identifier for the data source to list templates from.
+</ParamField>
+
+<ParamField path="start_cursor" type="string">
+  Pagination cursor for retrieving the next page of results. If not provided, returns the first page.
+</ParamField>
+
+<ParamField path="page_size" type="number">
+  The number of items to return per page. Maximum is 100. Default is 100.
+</ParamField>
+
+## Response
+
+Returns a paginated list of data source template objects.
+
+<ResponseField name="object" type="string">
+  Always `"list"`
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  Array of data source template objects.
+  
+  <Expandable title="template properties">
+    <ResponseField name="id" type="string">
+      Unique identifier for the template.
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Display name of the template.
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Description of what the template is used for.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more templates to retrieve.
+</ResponseField>
+
+<ResponseField name="next_cursor" type="string | null">
+  Cursor for the next page of results. `null` if there are no more results.
+</ResponseField>
+
+## Examples
+
+### List all templates
+
+```typescript
+const { Client } = require('@notionhq/client')
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+const response = await notion.dataSources.listTemplates({
+  data_source_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af"
+})
+
+console.log(`Found ${response.results.length} templates`)
+response.results.forEach(template => {
+  console.log(`- ${template.name}: ${template.description}`)
+})
+```
+
+### Manual pagination
+
+```typescript
+let cursor = undefined
+const allTemplates = []
+
+do {
+  const response = await notion.dataSources.listTemplates({
+    data_source_id: dataSourceId,
+    start_cursor: cursor
+  })
+  
+  allTemplates.push(...response.results)
+  cursor = response.has_more ? response.next_cursor : undefined
+} while (cursor)
+
+console.log(`Total templates: ${allTemplates.length}`)
+```
+
+### Using the helper function
+
+For a more convenient way to iterate through all templates, use the `iterateDataSourceTemplates` helper:
+
+```typescript
+const { iterateDataSourceTemplates } = require('@notionhq/client')
+
+for await (const template of iterateDataSourceTemplates(notion, {
+  data_source_id: dataSourceId
+})) {
+  console.log(`Template: ${template.name}`)
+}
+```
+
+Or collect all templates at once:
+
+```typescript
+const { collectDataSourceTemplates } = require('@notionhq/client')
+
+const templates = await collectDataSourceTemplates(notion, {
+  data_source_id: dataSourceId
+})
+
+console.log(`Found ${templates.length} templates`)
+```
+
+### Find a specific template
+
+```typescript
+const response = await notion.dataSources.listTemplates({
+  data_source_id: dataSourceId
+})
+
+const meetingTemplate = response.results.find(
+  template => template.name.includes("Meeting")
+)
+
+if (meetingTemplate) {
+  console.log(`Found template: ${meetingTemplate.id}`)
+}
+```
+
+## Notes
+
+<Note>
+  Templates are specific to each data source and define the default structure for new pages created within that data source.
+</Note>
+
+<Info>
+  Use the [collectDataSourceTemplates](/api/helpers/pagination#collectdatasourcetemplates) and [iterateDataSourceTemplates](/api/helpers/pagination#iteratedatasourcetemplates) helper functions for easier pagination handling.
+</Info>
+
+## Related methods
+
+- [Query data source](/api/data-sources/query)
+- [Create data source](/api/data-sources/create)
+- [Helper: iterateDataSourceTemplates](/api/helpers/pagination#iteratedatasourcetemplates)
+- [Helper: collectDataSourceTemplates](/api/helpers/pagination#collectdatasourcetemplates)

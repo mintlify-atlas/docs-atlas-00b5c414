@@ -1,0 +1,145 @@
+---
+title: "Retrieve file upload"
+description: "Get details about a specific file upload by ID"
+---
+
+Retrieves the details of an existing file upload. This is useful for checking the status of an upload or getting the file URL after completion.
+
+## Method
+
+```typescript
+client.fileUploads.retrieve({
+  file_upload_id: "7c6a28216bb14a7eb6e1c50111515c3d"
+})
+```
+
+## Parameters
+
+<ParamField path="file_upload_id" type="string" required>
+  The ID of the file upload to retrieve.
+</ParamField>
+
+## Response
+
+Returns a [FileUploadObjectResponse](/api/file-uploads/create#response) with the current state of the file upload.
+
+<ResponseField name="object" type="string">
+  Always `"file_upload"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  Unique identifier for the file upload.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the file upload.
+  
+  Values: `"pending"` | `"processing"` | `"complete"` | `"failed"`
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  ISO 8601 timestamp when the file upload was created.
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the file upload was last updated.
+</ResponseField>
+
+<ResponseField name="file" type="object">
+  File information (only present when status is `"complete"`)
+  
+  <Expandable title="file properties">
+    <ResponseField name="url" type="string">
+      The Notion URL where the file can be accessed.
+    </ResponseField>
+    
+    <ResponseField name="expiry_time" type="string">
+      ISO 8601 timestamp when the file URL will expire.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="filename" type="string">
+  Name of the uploaded file.
+</ResponseField>
+
+<ResponseField name="content_type" type="string">
+  MIME type of the file.
+</ResponseField>
+
+## Examples
+
+### Check upload status
+
+```typescript
+const { Client } = require('@notionhq/client')
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+const fileUpload = await notion.fileUploads.retrieve({
+  file_upload_id: "7c6a28216bb14a7eb6e1c50111515c3d"
+})
+
+console.log(`Status: ${fileUpload.status}`)
+
+if (fileUpload.status === "complete" && fileUpload.file) {
+  console.log(`File URL: ${fileUpload.file.url}`)
+}
+```
+
+### Poll for completion
+
+```typescript
+async function waitForUpload(fileUploadId) {
+  let upload
+  
+  do {
+    upload = await notion.fileUploads.retrieve({
+      file_upload_id: fileUploadId
+    })
+    
+    if (upload.status === "failed") {
+      throw new Error("File upload failed")
+    }
+    
+    if (upload.status !== "complete") {
+      // Wait 1 second before checking again
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+  } while (upload.status !== "complete")
+  
+  return upload
+}
+
+const completedUpload = await waitForUpload("7c6a28216bb14a7eb6e1c50111515c3d")
+console.log(`File ready: ${completedUpload.file.url}`)
+```
+
+### Get file URL with error handling
+
+```typescript
+try {
+  const upload = await notion.fileUploads.retrieve({
+    file_upload_id: fileUploadId
+  })
+  
+  if (upload.status === "complete" && upload.file) {
+    return upload.file.url
+  } else {
+    throw new Error(`Upload not complete: ${upload.status}`)
+  }
+} catch (error) {
+  if (error.code === APIErrorCode.ObjectNotFound) {
+    console.error("File upload not found")
+  } else {
+    throw error
+  }
+}
+```
+
+## Related methods
+
+- [Create file upload](/api/file-uploads/create)
+- [Send file upload](/api/file-uploads/send)
+- [Complete file upload](/api/file-uploads/complete)
+- [List file uploads](/api/file-uploads/list)

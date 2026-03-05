@@ -84,13 +84,84 @@ blocks.forEach(block => {
 - You need all results before processing
 - You need to perform operations that require the full dataset (sorting, filtering, etc.)
 
+## iterateDataSourceTemplates
+
+A specialized iterator for data source templates. This helper simplifies iterating through all page templates available for a data source.
+
+### Signature
+
+```typescript
+async function* iterateDataSourceTemplates(
+  client: Client,
+  args: ListDataSourceTemplatesArgs
+): AsyncIterableIterator<DataSourceTemplate>
+```
+
+### Parameters
+
+- `client` - An instance of the Notion client
+- `args` - Arguments for the `dataSources.listTemplates` API call, including `data_source_id`
+
+### Example
+
+```typescript
+import { iterateDataSourceTemplates } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+for await (const template of iterateDataSourceTemplates(notion, {
+  data_source_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af"
+})) {
+  console.log(`Template: ${template.name} - ${template.description}`)
+}
+```
+
+## collectDataSourceTemplates
+
+Collects all data source templates into an array. Use this when you need to work with the full list of templates at once.
+
+### Signature
+
+```typescript
+async function collectDataSourceTemplates(
+  client: Client,
+  args: ListDataSourceTemplatesArgs
+): Promise<DataSourceTemplate[]>
+```
+
+### Parameters
+
+- `client` - An instance of the Notion client
+- `args` - Arguments for the `dataSources.listTemplates` API call, including `data_source_id`
+
+### Example
+
+```typescript
+import { collectDataSourceTemplates } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+const templates = await collectDataSourceTemplates(notion, {
+  data_source_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af"
+})
+
+console.log(`Found ${templates.length} templates`)
+
+// Find a specific template
+const meetingTemplate = templates.find(t => t.name.includes("Meeting"))
+if (meetingTemplate) {
+  console.log(`Meeting template ID: ${meetingTemplate.id}`)
+}
+```
+
 ## Supported Endpoints
 
 These helpers work with any paginated Notion API endpoint, including:
 
 - `notion.blocks.children.list`
-- `notion.databases.query`
+- `notion.dataSources.query`
+- `notion.dataSources.listTemplates` (use specialized helpers above)
 - `notion.users.list`
 - `notion.comments.list`
+- `notion.fileUploads.list`
 - `notion.search`
-- And more
