@@ -1,0 +1,214 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Notion SDK for JavaScript",
+  "projectDescription": "Official JavaScript/TypeScript client library for the Notion API",
+  "theme": "mint",
+  "primaryColor": "#040404",
+  "lightColor": "#7c7c7c",
+  "darkColor": "#c8c8c8",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart",
+              "authentication"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/client",
+              "concepts/error-handling",
+              "concepts/retries",
+              "concepts/logging",
+              "concepts/typescript"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/pagination",
+              "guides/type-guards",
+              "guides/custom-requests",
+              "guides/oauth",
+              "guides/file-uploads"
+            ]
+          },
+          {
+            "group": "Migration",
+            "pages": [
+              "migration/upgrading",
+              "migration/api-versions"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Client",
+            "pages": [
+              "api/client",
+              "api/client-options"
+            ]
+          },
+          {
+            "group": "Blocks",
+            "pages": [
+              "api/blocks/retrieve",
+              "api/blocks/update",
+              "api/blocks/delete",
+              "api/blocks/children"
+            ]
+          },
+          {
+            "group": "Pages",
+            "pages": [
+              "api/pages/create",
+              "api/pages/retrieve",
+              "api/pages/update",
+              "api/pages/move",
+              "api/pages/properties",
+              "api/pages/markdown"
+            ]
+          },
+          {
+            "group": "Databases",
+            "pages": [
+              "api/databases/create",
+              "api/databases/retrieve",
+              "api/databases/update",
+              "api/databases/query"
+            ]
+          },
+          {
+            "group": "Data Sources",
+            "pages": [
+              "api/data-sources/create",
+              "api/data-sources/retrieve",
+              "api/data-sources/update",
+              "api/data-sources/query"
+            ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api/users/retrieve",
+              "api/users/list",
+              "api/users/me"
+            ]
+          },
+          {
+            "group": "Comments",
+            "pages": [
+              "api/comments/create",
+              "api/comments/retrieve",
+              "api/comments/list"
+            ]
+          },
+          {
+            "group": "File Uploads",
+            "pages": [
+              "api/file-uploads/create",
+              "api/file-uploads/send",
+              "api/file-uploads/complete",
+              "api/file-uploads/list"
+            ]
+          },
+          {
+            "group": "Search & OAuth",
+            "pages": [
+              "api/search",
+              "api/oauth"
+            ]
+          },
+          {
+            "group": "Helpers",
+            "pages": [
+              "api/helpers/pagination",
+              "api/helpers/type-guards",
+              "api/helpers/id-extraction"
+            ]
+          },
+          {
+            "group": "Errors",
+            "pages": [
+              "api/errors/error-types",
+              "api/errors/error-codes"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Type-safe TypeScript client",
+    "Automatic retry with exponential back-off",
+    "Built-in pagination utilities",
+    "Comprehensive error handling",
+    "OAuth 2.0 support",
+    "File upload management",
+    "Custom logging system",
+    "Type guards for response validation"
+  ],
+  "publicApiSurface": [
+    "Client",
+    "client.blocks.retrieve()",
+    "client.blocks.update()",
+    "client.blocks.delete()",
+    "client.blocks.children.list()",
+    "client.blocks.children.append()",
+    "client.pages.create()",
+    "client.pages.retrieve()",
+    "client.pages.update()",
+    "client.pages.move()",
+    "client.pages.properties.retrieve()",
+    "client.databases.create()",
+    "client.databases.retrieve()",
+    "client.databases.update()",
+    "client.databases.query()",
+    "client.dataSources.create()",
+    "client.dataSources.retrieve()",
+    "client.dataSources.update()",
+    "client.dataSources.query()",
+    "client.users.retrieve()",
+    "client.users.list()",
+    "client.users.me()",
+    "client.comments.create()",
+    "client.comments.retrieve()",
+    "client.comments.list()",
+    "client.fileUploads.create()",
+    "client.fileUploads.send()",
+    "client.fileUploads.complete()",
+    "client.fileUploads.list()",
+    "client.search()",
+    "client.oauth.token()",
+    "client.oauth.introspect()",
+    "client.oauth.revoke()",
+    "collectPaginatedAPI()",
+    "iteratePaginatedAPI()",
+    "isFullPage()",
+    "isFullBlock()",
+    "isFullDatabase()",
+    "isFullDataSource()",
+    "isFullUser()",
+    "isFullComment()",
+    "isFullPageOrDataSource()",
+    "extractNotionId()",
+    "extractPageId()",
+    "extractDatabaseId()",
+    "extractBlockId()",
+    "isNotionClientError()",
+    "isHTTPResponseError()",
+    "APIErrorCode",
+    "ClientErrorCode",
+    "LogLevel"
+  ]
+}
