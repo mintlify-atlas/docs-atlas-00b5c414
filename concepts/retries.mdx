@@ -1,0 +1,310 @@
+---
+title: Retries
+description: Automatic retry configuration for transient errors
+---
+
+The SDK automatically retries failed requests for transient errors like rate limits and server errors, with configurable back-off strategies.
+
+## Default Behavior
+
+By default, the client retries requests up to 2 times with exponential back-off:
+
+```typescript
+import { Client } from '@notionhq/client'
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  // Default retry configuration:
+  // - maxRetries: 2
+  // - initialRetryDelayMs: 1000
+  // - maxRetryDelayMs: 60000
+})
+```
+
+This means a request can be attempted up to 3 times total (1 initial + 2 retries).
+
+## Which Errors Are Retried
+
+The SDK retries different error codes based on their characteristics:
+
+### Always Retried
+
+**Rate Limits (429)** - Retried for all HTTP methods:
+
+```typescript
+// rate_limited errors are always retried
+// The server explicitly asks clients to retry
+await notion.pages.create({ ... }) // Will retry on 429
+await notion.pages.retrieve({ ... }) // Will retry on 429
+```
+
+Rate limit errors respect the `retry-after` header when present.
+
+### Retried for Idempotent Methods
+
+**Server Errors (500, 503)** - Only retried for GET and DELETE:
+
+```typescript
+// These are retried on 500/503 (safe to retry)
+await notion.pages.retrieve({ page_id: 'page-id' }) // GET
+await notion.blocks.delete({ block_id: 'block-id' }) // DELETE
+
+// These are NOT retried on 500/503 (not idempotent)
+await notion.pages.create({ ... }) // POST
+await notion.pages.update({ ... }) // PATCH
+```
+
+<Info>
+  Server errors are only retried for idempotent methods (GET, DELETE) to avoid duplicate side effects like creating the same page twice.
+</Info>
+
+### Never Retried
+
+These errors indicate client problems and are never retried:
+
+- `unauthorized` (401)
+- `object_not_found` (404)
+- `validation_error` (400)
+- `invalid_request` (400)
+- `conflict_error` (409)
+- Client-side errors (timeout, invalid path)
+
+## Retry Configuration
+
+Customize retry behavior with `RetryOptions`:
+
+```typescript
+import { Client } from '@notionhq/client'
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  retry: {
+    maxRetries: 3,              // Retry up to 3 times (4 total attempts)
+    initialRetryDelayMs: 2000,  // Start with 2 second delay
+    maxRetryDelayMs: 30000,     // Cap delays at 30 seconds
+  },
+})
+```
+
+### RetryOptions
+
+<ParamField path="maxRetries" type="number" default={2}>
+  Maximum number of retry attempts. Set to `0` to disable retries.
+</ParamField>
+
+<ParamField path="initialRetryDelayMs" type="number" default={1000}>
+  Initial delay between retries in milliseconds. Used as base for exponential back-off when `retry-after` header is absent.
+</ParamField>
+
+<ParamField path="maxRetryDelayMs" type="number" default={60000}>
+  Maximum delay between retries in milliseconds. Caps both exponential back-off and `retry-after` values.
+</ParamField>
+
+## Disabling Retries
+
+Set `retry: false` to disable all automatic retries:
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  retry: false, // No automatic retries
+})
+```
+
+This is useful when:
+- You want full control over retry logic
+- You're implementing your own retry wrapper
+- You need predictable request timing for testing
+
+## Retry Delay Calculation
+
+The SDK uses two strategies to determine retry delays:
+
+### 1. Retry-After Header (Preferred)
+
+When the API includes a `retry-after` header, the SDK waits for that duration:
+
+```typescript
+// API responds with: retry-after: 5
+// SDK waits 5 seconds before retrying (capped by maxRetryDelayMs)
+```
+
+The `retry-after` header supports two formats:
+- **Delta-seconds**: `retry-after: 120` (wait 120 seconds)
+- **HTTP-date**: `retry-after: Wed, 21 Oct 2026 07:28:00 GMT`
+
+### 2. Exponential Back-off with Jitter
+
+When no `retry-after` header is present, the SDK uses exponential back-off with jitter:
+
+```typescript
+// Base delay doubles with each attempt, plus random jitter
+const baseDelay = initialRetryDelayMs * Math.pow(2, attemptNumber)
+const jitter = Math.random()
+const delay = Math.min(
+  baseDelay * jitter + baseDelay / 2,
+  maxRetryDelayMs
+)
+```
+
+**Example delays** with `initialRetryDelayMs: 1000`:
+
+- **Attempt 1**: 750-1500ms (1000 * 1 * (0.5 to 1.5))
+- **Attempt 2**: 1500-3000ms (1000 * 2 * (0.5 to 1.5))
+- **Attempt 3**: 3000-6000ms (1000 * 4 * (0.5 to 1.5))
+
+Jitter prevents thundering herd when many clients retry simultaneously.
+
+## Examples
+
+### Aggressive Retries
+
+Retry quickly with more attempts:
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  retry: {
+    maxRetries: 5,
+    initialRetryDelayMs: 500,  // Start with 500ms
+    maxRetryDelayMs: 10000,    // Cap at 10 seconds
+  },
+})
+```
+
+### Conservative Retries
+
+Retry slowly with fewer attempts:
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  retry: {
+    maxRetries: 1,
+    initialRetryDelayMs: 5000,  // Start with 5 seconds
+    maxRetryDelayMs: 30000,     // Cap at 30 seconds
+  },
+})
+```
+
+### No Retries
+
+Disable retries completely:
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  retry: false,
+})
+```
+
+### Custom Retry Logic
+
+Implement your own retry wrapper:
+
+```typescript
+import { Client, isNotionClientError, APIErrorCode } from '@notionhq/client'
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  retry: false, // Disable built-in retries
+})
+
+async function customRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      const isLastAttempt = attempt === maxAttempts
+      
+      if (
+        !isNotionClientError(error) ||
+        isLastAttempt ||
+        !shouldRetry(error)
+      ) {
+        throw error
+      }
+
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+  throw new Error('Unreachable')
+}
+
+function shouldRetry(error: unknown): boolean {
+  if (!isNotionClientError(error)) return false
+  
+  if ('code' in error) {
+    return (
+      error.code === APIErrorCode.RateLimited ||
+      error.code === APIErrorCode.InternalServerError ||
+      error.code === APIErrorCode.ServiceUnavailable
+    )
+  }
+  
+  return false
+}
+
+// Usage
+const page = await customRetry(() =>
+  notion.pages.retrieve({ page_id: 'page-id' })
+)
+```
+
+## Retry Logging
+
+Set `logLevel` to `INFO` or `DEBUG` to see retry attempts:
+
+```typescript
+import { Client, LogLevel } from '@notionhq/client'
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logLevel: LogLevel.INFO,
+  retry: {
+    maxRetries: 3,
+    initialRetryDelayMs: 1000,
+  },
+})
+
+// Console output on retry:
+// @notionhq/client info: retrying request {
+//   method: 'get',
+//   path: 'pages/page-id',
+//   attempt: 1,
+//   delayMs: 1234
+// }
+```
+
+See [Logging](/concepts/logging) for more details.
+
+## Best Practices
+
+1. **Use default retry settings** - They work well for most use cases
+2. **Don't disable retries** - Unless you have a specific reason
+3. **Respect rate limits** - The SDK handles this automatically
+4. **Monitor retry patterns** - Frequent retries may indicate API issues
+5. **Set appropriate timeouts** - Match `timeoutMs` to your retry strategy
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  // If maxRetries=3 and maxRetryDelayMs=60000,
+  // a single request could take up to ~2 minutes
+  // Set timeout higher than total possible retry time
+  timeoutMs: 180000, // 3 minutes
+  retry: {
+    maxRetries: 3,
+    initialRetryDelayMs: 1000,
+    maxRetryDelayMs: 60000,
+  },
+})
+```
+
+<Warning>
+  Setting `timeoutMs` lower than your maximum retry delay can cause requests to timeout before retries complete.
+</Warning>

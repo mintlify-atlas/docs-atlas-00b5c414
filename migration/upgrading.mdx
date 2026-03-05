@@ -1,0 +1,194 @@
+---
+title: Upgrading Between Versions
+description: Guide to migrating between major versions of the Notion SDK for JavaScript
+---
+
+This guide helps you upgrade between major versions of the Notion SDK for JavaScript, highlighting breaking changes and migration strategies.
+
+## Current Version
+
+The current SDK version is **v5.11.1**. This package requires:
+
+- **Node.js**: >= 18
+- **TypeScript** (optional): >= 5.9
+
+## Version Compatibility
+
+Due to backwards-incompatible changes across [Notion API versions](https://developers.notion.com/reference/versioning), certain SDK versions require minimum API versions:
+
+| SDK Version      | Minimum API Version |
+| ---------------- | ------------------- |
+| v4.0.0 and above | 2022-06-28          |
+| v5.0.0 and above | 2025-09-03          |
+
+<Warning>
+We strongly recommend upgrading your Notion API version header before upgrading to a newer SDK version to avoid compatibility issues.
+</Warning>
+
+## Upgrading to v5.x
+
+### Breaking Changes
+
+#### Minimum API Version Requirement
+
+Version 5.0.0 requires **Notion API version 2025-09-03** or later. The SDK defaults to this version automatically.
+
+**Before (v4.x):**
+```javascript
+const { Client } = require("@notionhq/client")
+
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  // Default API version: 2022-06-28
+})
+```
+
+**After (v5.x):**
+```javascript
+const { Client } = require("@notionhq/client")
+
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  // Default API version: 2025-09-03
+})
+```
+
+#### New Node.js Requirement
+
+The minimum supported Node.js version is **18** (previously it was lower). Ensure your runtime environment meets this requirement.
+
+```bash
+node --version
+# Should output v18.x.x or higher
+```
+
+### New Features in v5.x
+
+#### Automatic Retry Configuration
+
+Version 5.x includes enhanced automatic retry capabilities with configurable options:
+
+```javascript
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  retry: {
+    maxRetries: 5,                 // Default: 2
+    initialRetryDelayMs: 500,      // Default: 1000
+    maxRetryDelayMs: 60000,        // Default: 60000
+  },
+})
+```
+
+To disable retries:
+
+```javascript
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  retry: false,
+})
+```
+
+#### Data Sources API
+
+Version 5.x adds support for the Data Sources API:
+
+```javascript
+const result = await notion.dataSources.query({
+  data_source_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  filter: {
+    property: "Status",
+    select: {
+      equals: "Active",
+    },
+  },
+})
+```
+
+### Migration Checklist
+
+When upgrading to v5.x:
+
+- [ ] Verify Node.js version is >= 18
+- [ ] Update your Notion API version to 2025-09-03 (or explicitly set `notionVersion` in Client options)
+- [ ] Test all API calls to ensure compatibility with the new API version
+- [ ] Review and update TypeScript types if using TypeScript >= 5.9
+- [ ] Update any custom retry logic to use the new `retry` configuration option
+- [ ] Test error handling with the updated retry behavior
+
+## Upgrading to v4.x
+
+### Breaking Changes
+
+#### Minimum API Version Requirement
+
+Version 4.0.0 introduced a requirement for **Notion API version 2022-06-28** or later.
+
+<Note>
+If you're currently on v3.x or earlier, first upgrade your API version header before upgrading the SDK to avoid unexpected behavior.
+</Note>
+
+### Migration Strategy
+
+1. **Update API Version First**
+   ```javascript
+   const notion = new Client({
+     auth: process.env.NOTION_TOKEN,
+     notionVersion: "2022-06-28",
+   })
+   ```
+
+2. **Test Your Application**
+   Run comprehensive tests with the new API version before upgrading the SDK package.
+
+3. **Upgrade the SDK**
+   ```bash
+   npm install @notionhq/client@^4.0.0
+   ```
+
+4. **Remove Explicit API Version** (optional)
+   Once you've verified everything works, you can remove the explicit `notionVersion` setting as v4.x defaults to 2022-06-28.
+
+## Common Migration Issues
+
+### Type Errors After Upgrading
+
+If you encounter TypeScript errors after upgrading:
+
+1. Ensure your TypeScript version meets the minimum requirement (>= 5.9 for latest SDK)
+2. Clear your `node_modules` and `package-lock.json`, then reinstall:
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+3. Regenerate type declarations if using custom build configurations
+
+### API Response Changes
+
+Different Notion API versions may return different response structures. Always consult the [Notion API changelog](https://developers.notion.com/reference/changes-by-version) when upgrading API versions.
+
+### Deprecation Warnings
+
+If you see deprecation warnings in your logs:
+
+1. Review the [Notion API versioning documentation](https://developers.notion.com/reference/versioning)
+2. Update your code to use the recommended alternatives
+3. Test thoroughly before deploying to production
+
+## Getting Help
+
+If you encounter issues during migration:
+
+- Review the [Notion API changelog](https://developers.notion.com/reference/changes-by-version)
+- Check the [GitHub repository](https://github.com/makenotion/notion-sdk-js) for known issues
+- Contact Notion developers at `developers@makenotion.com`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Versions" icon="code-branch" href="/migration/api-versions">
+    Learn about API version compatibility and configuration
+  </Card>
+  <Card title="Client Configuration" icon="gear" href="/configuration/client-options">
+    Explore all available Client configuration options
+  </Card>
+</CardGroup>

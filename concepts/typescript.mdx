@@ -1,0 +1,520 @@
+---
+title: TypeScript
+description: Work with fully typed responses and type-safe API calls
+---
+
+The Notion SDK is written in TypeScript and provides full type definitions for all API requests and responses.
+
+## Type-Safe API Calls
+
+All client methods are fully typed with request parameters and response types:
+
+```typescript
+import { Client } from '@notionhq/client'
+import type { PageObjectResponse, GetPageResponse } from '@notionhq/client'
+
+const notion = new Client({ auth: process.env.NOTION_API_KEY })
+
+// TypeScript knows the return type
+const response: GetPageResponse = await notion.pages.retrieve({
+  page_id: 'page-id',
+})
+
+// response is PageObjectResponse | PartialPageObjectResponse
+if ('url' in response) {
+  // TypeScript narrows to PageObjectResponse
+  const url: string = response.url
+}
+```
+
+## Importing Types
+
+All types are exported from the main package:
+
+```typescript
+import type {
+  // Response types
+  PageObjectResponse,
+  BlockObjectResponse,
+  DatabaseObjectResponse,
+  UserObjectResponse,
+  CommentObjectResponse,
+  
+  // Partial types
+  PartialPageObjectResponse,
+  PartialBlockObjectResponse,
+  PartialDatabaseObjectResponse,
+  
+  // Request parameter types
+  CreatePageParameters,
+  UpdatePageParameters,
+  QueryDataSourceParameters,
+  
+  // Response types
+  CreatePageResponse,
+  ListBlockChildrenResponse,
+  SearchResponse,
+  
+  // Rich text types
+  RichTextItemResponse,
+  TextRichTextItemResponse,
+  MentionRichTextItemResponse,
+  
+  // Error types
+  NotionClientError,
+  APIErrorCode,
+  ClientErrorCode,
+} from '@notionhq/client'
+```
+
+## Request Parameter Types
+
+Each API method has a corresponding parameter type:
+
+```typescript
+import type { CreatePageParameters } from '@notionhq/client'
+
+const params: CreatePageParameters = {
+  parent: { database_id: 'database-id' },
+  properties: {
+    Name: {
+      title: [{ text: { content: 'New Page' } }],
+    },
+  },
+}
+
+await notion.pages.create(params)
+```
+
+### Common Parameter Types
+
+```typescript
+import type {
+  GetBlockParameters,
+  UpdateBlockParameters,
+  AppendBlockChildrenParameters,
+  CreatePageParameters,
+  UpdatePageParameters,
+  GetPagePropertyParameters,
+  QueryDataSourceParameters,
+  SearchParameters,
+  ListUsersParameters,
+  CreateCommentParameters,
+} from '@notionhq/client'
+```
+
+## Response Types
+
+Each API method returns a typed response:
+
+```typescript
+import type {
+  GetPageResponse,
+  CreatePageResponse,
+  UpdatePageResponse,
+  ListBlockChildrenResponse,
+  QueryDataSourceResponse,
+  SearchResponse,
+} from '@notionhq/client'
+
+const page: GetPageResponse = await notion.pages.retrieve({
+  page_id: 'page-id',
+})
+
+const blocks: ListBlockChildrenResponse = await notion.blocks.children.list({
+  block_id: 'block-id',
+})
+```
+
+## Type Guards
+
+Use type guards to narrow union types:
+
+### Object Type Guards
+
+```typescript
+import {
+  isFullPage,
+  isFullBlock,
+  isFullDataSource,
+  isFullDatabase,
+  isFullUser,
+  isFullComment,
+} from '@notionhq/client'
+import type { GetPageResponse } from '@notionhq/client'
+
+const response: GetPageResponse = await notion.pages.retrieve({
+  page_id: 'page-id',
+})
+
+// response is PageObjectResponse | PartialPageObjectResponse
+if (isFullPage(response)) {
+  // response is now PageObjectResponse
+  console.log(response.url)
+  console.log(response.created_time)
+  console.log(response.properties)
+}
+```
+
+### Full Page or Data Source
+
+```typescript
+import { isFullPageOrDataSource } from '@notionhq/client'
+import type { SearchResponse } from '@notionhq/client'
+
+const searchResults: SearchResponse = await notion.search({
+  query: 'meeting notes',
+})
+
+for (const result of searchResults.results) {
+  if (isFullPageOrDataSource(result)) {
+    // result is PageObjectResponse | DataSourceObjectResponse
+    console.log(result.id)
+    if ('url' in result) {
+      // result is PageObjectResponse
+      console.log('Page URL:', result.url)
+    }
+  }
+}
+```
+
+### Rich Text Type Guards
+
+```typescript
+import type { RichTextItemResponse } from '@notionhq/client'
+
+function extractText(richText: RichTextItemResponse[]): string {
+  return richText
+    .map(item => {
+      if (item.type === 'text') {
+        // TypeScript narrows to TextRichTextItemResponse
+        return item.text.content
+      } else if (item.type === 'mention') {
+        // TypeScript narrows to MentionRichTextItemResponse
+        return item.mention.type
+      } else if (item.type === 'equation') {
+        // TypeScript narrows to EquationRichTextItemResponse
+        return item.equation.expression
+      }
+      return ''
+    })
+    .join('')
+}
+```
+
+### Error Type Guards
+
+```typescript
+import {
+  isNotionClientError,
+  isHTTPResponseError,
+  APIResponseError,
+  RequestTimeoutError,
+} from '@notionhq/client'
+
+try {
+  await notion.pages.retrieve({ page_id: 'page-id' })
+} catch (error: unknown) {
+  if (isNotionClientError(error)) {
+    // error is NotionClientError
+    console.log('Error code:', error.code)
+  }
+  
+  if (isHTTPResponseError(error)) {
+    // error is APIResponseError | UnknownHTTPResponseError
+    console.log('HTTP status:', error.status)
+    console.log('Response body:', error.body)
+  }
+  
+  if (APIResponseError.isAPIResponseError(error)) {
+    // error is APIResponseError
+    console.log('API error:', error.code)
+    console.log('Request ID:', error.request_id)
+  }
+  
+  if (RequestTimeoutError.isRequestTimeoutError(error)) {
+    // error is RequestTimeoutError
+    console.log('Request timed out')
+  }
+}
+```
+
+## Block Types
+
+Different block types have distinct structures:
+
+```typescript
+import type {
+  BlockObjectResponse,
+  ParagraphBlockObjectResponse,
+  Heading1BlockObjectResponse,
+  CodeBlockObjectResponse,
+  ImageBlockObjectResponse,
+  ToDoBlockObjectResponse,
+} from '@notionhq/client'
+
+const block: BlockObjectResponse = await notion.blocks.retrieve({
+  block_id: 'block-id',
+})
+
+switch (block.type) {
+  case 'paragraph':
+    // block.paragraph is defined
+    console.log(block.paragraph.rich_text)
+    break
+  case 'heading_1':
+    // block.heading_1 is defined
+    console.log(block.heading_1.rich_text)
+    break
+  case 'code':
+    // block.code is defined
+    console.log(block.code.language)
+    console.log(block.code.rich_text)
+    break
+  case 'to_do':
+    // block.to_do is defined
+    console.log(block.to_do.checked)
+    console.log(block.to_do.rich_text)
+    break
+}
+```
+
+## Property Types
+
+Database properties have different value types:
+
+```typescript
+import type {
+  PageObjectResponse,
+  TitlePropertyItemObjectResponse,
+  RichTextPropertyItemObjectResponse,
+  NumberPropertyItemObjectResponse,
+  SelectPropertyItemObjectResponse,
+  MultiSelectPropertyItemObjectResponse,
+  DatePropertyItemObjectResponse,
+  CheckboxPropertyItemObjectResponse,
+} from '@notionhq/client'
+
+const page = await notion.pages.retrieve({ page_id: 'page-id' }) as PageObjectResponse
+
+for (const [propertyName, property] of Object.entries(page.properties)) {
+  switch (property.type) {
+    case 'title':
+      console.log('Title:', property.title.map(t => t.plain_text).join(''))
+      break
+    case 'rich_text':
+      console.log('Text:', property.rich_text.map(t => t.plain_text).join(''))
+      break
+    case 'number':
+      console.log('Number:', property.number)
+      break
+    case 'select':
+      console.log('Select:', property.select?.name)
+      break
+    case 'multi_select':
+      console.log('Tags:', property.multi_select.map(s => s.name).join(', '))
+      break
+    case 'date':
+      console.log('Date:', property.date?.start)
+      break
+    case 'checkbox':
+      console.log('Checked:', property.checkbox)
+      break
+  }
+}
+```
+
+## Generic Type Utilities
+
+Extract types from SDK types:
+
+```typescript
+import type { BlockObjectResponse } from '@notionhq/client'
+
+// Extract specific block type
+type ParagraphBlock = Extract<BlockObjectResponse, { type: 'paragraph' }>
+type HeadingBlock = Extract<BlockObjectResponse, { type: 'heading_1' | 'heading_2' | 'heading_3' }>
+type CodeBlock = Extract<BlockObjectResponse, { type: 'code' }>
+
+function processParagraph(block: ParagraphBlock) {
+  // block.paragraph is always defined
+  const text = block.paragraph.rich_text.map(t => t.plain_text).join('')
+  return text
+}
+```
+
+## Helper Type Examples
+
+### Create Type-Safe Wrappers
+
+```typescript
+import type { CreatePageParameters, PageObjectResponse } from '@notionhq/client'
+
+interface DatabasePage {
+  title: string
+  status: string
+  tags: string[]
+  dueDate?: string
+}
+
+function createDatabasePage(
+  databaseId: string,
+  page: DatabasePage
+): CreatePageParameters {
+  return {
+    parent: { database_id: databaseId },
+    properties: {
+      Name: {
+        title: [{ text: { content: page.title } }],
+      },
+      Status: {
+        select: { name: page.status },
+      },
+      Tags: {
+        multi_select: page.tags.map(tag => ({ name: tag })),
+      },
+      ...(page.dueDate && {
+        'Due Date': {
+          date: { start: page.dueDate },
+        },
+      }),
+    },
+  }
+}
+
+await notion.pages.create(
+  createDatabasePage('database-id', {
+    title: 'New Task',
+    status: 'In Progress',
+    tags: ['urgent', 'bug'],
+    dueDate: '2026-03-10',
+  })
+)
+```
+
+### Extract Property Values
+
+```typescript
+import type { PageObjectResponse } from '@notionhq/client'
+
+function getPageTitle(page: PageObjectResponse): string {
+  for (const property of Object.values(page.properties)) {
+    if (property.type === 'title') {
+      return property.title.map(t => t.plain_text).join('')
+    }
+  }
+  return 'Untitled'
+}
+
+function getPropertyValue(
+  page: PageObjectResponse,
+  propertyName: string
+): unknown {
+  const property = page.properties[propertyName]
+  if (!property) return undefined
+
+  switch (property.type) {
+    case 'title':
+      return property.title.map(t => t.plain_text).join('')
+    case 'rich_text':
+      return property.rich_text.map(t => t.plain_text).join('')
+    case 'number':
+      return property.number
+    case 'select':
+      return property.select?.name
+    case 'multi_select':
+      return property.multi_select.map(s => s.name)
+    case 'date':
+      return property.date
+    case 'checkbox':
+      return property.checkbox
+    default:
+      return undefined
+  }
+}
+```
+
+## Type-Safe Configuration
+
+```typescript
+import { Client, LogLevel } from '@notionhq/client'
+import type { ClientOptions, RetryOptions } from '@notionhq/client'
+
+const retryConfig: RetryOptions = {
+  maxRetries: 3,
+  initialRetryDelayMs: 1000,
+  maxRetryDelayMs: 30000,
+}
+
+const clientOptions: ClientOptions = {
+  auth: process.env.NOTION_API_KEY,
+  logLevel: LogLevel.INFO,
+  timeoutMs: 60000,
+  retry: retryConfig,
+}
+
+const notion = new Client(clientOptions)
+```
+
+## Working with Unknown Types
+
+When dealing with dynamic data, use type assertions carefully:
+
+```typescript
+import type { PageObjectResponse } from '@notionhq/client'
+import { isFullPage } from '@notionhq/client'
+
+const response = await notion.pages.retrieve({ page_id: 'page-id' })
+
+// Option 1: Type guard
+if (isFullPage(response)) {
+  const page: PageObjectResponse = response
+  console.log(page.url)
+}
+
+// Option 2: Type assertion (use sparingly)
+const page = response as PageObjectResponse
+if ('url' in page) {
+  console.log(page.url)
+}
+```
+
+<Warning>
+  Use type assertions sparingly. Prefer type guards like `isFullPage()` to safely narrow types.
+</Warning>
+
+## Best Practices
+
+1. **Import types separately** - Use `import type { ... }` for type-only imports
+2. **Use type guards** - Prefer `isFullPage()` over manual type checks
+3. **Leverage discriminated unions** - Use `type` fields to narrow block/property types
+4. **Avoid `any`** - The SDK provides complete types; use them
+5. **Type function parameters** - Explicitly type parameters that accept SDK types
+
+```typescript
+import type { BlockObjectResponse, PageObjectResponse } from '@notionhq/client'
+import { isFullBlock, isFullPage } from '@notionhq/client'
+
+// Good: Explicitly typed and type-guarded
+async function getPageBlocks(
+  notion: Client,
+  pageId: string
+): Promise<BlockObjectResponse[]> {
+  const response = await notion.blocks.children.list({ block_id: pageId })
+  return response.results.filter(isFullBlock)
+}
+
+// Good: Type guard before accessing properties
+function extractPageTitle(page: GetPageResponse): string {
+  if (isFullPage(page)) {
+    return getPageTitle(page)
+  }
+  return 'Unknown'
+}
+
+// Avoid: Implicit any
+// function processPage(page) { ... }
+
+// Avoid: Type assertion without guard
+// const page = response as PageObjectResponse
+```

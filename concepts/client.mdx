@@ -1,0 +1,262 @@
+---
+title: Client
+description: Initialize and configure the Notion SDK client
+---
+
+The `Client` class is the main entry point for interacting with the Notion API. It handles authentication, request management, and provides access to all API endpoints.
+
+## Basic Initialization
+
+Create a client instance with your Notion API token:
+
+```typescript
+import { Client } from '@notionhq/client'
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+})
+```
+
+<Note>
+  Get your API key from the [Notion integrations page](https://www.notion.so/my-integrations).
+</Note>
+
+## Client Options
+
+The client accepts several configuration options:
+
+### Authentication
+
+<ParamField path="auth" type="string">
+  Your Notion integration token or OAuth access token. Can also be provided per-request.
+</ParamField>
+
+```typescript
+const notion = new Client({
+  auth: 'secret_1234567890abcdefghijklmnopqrstuv',
+})
+```
+
+### Base URL
+
+<ParamField path="baseUrl" type="string" default="https://api.notion.com">
+  The base URL for Notion API requests. Useful for testing or proxying.
+</ParamField>
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  baseUrl: 'https://api.notion.com', // default
+})
+```
+
+### Notion Version
+
+<ParamField path="notionVersion" type="string" default="2025-09-03">
+  The Notion API version to use. Defaults to `Client.defaultNotionVersion`.
+</ParamField>
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  notionVersion: '2025-09-03',
+})
+```
+
+### Request Timeout
+
+<ParamField path="timeoutMs" type="number" default={60000}>
+  Request timeout in milliseconds. Requests exceeding this limit will throw a `RequestTimeoutError`.
+</ParamField>
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  timeoutMs: 30000, // 30 seconds
+})
+```
+
+### Custom Fetch
+
+<ParamField path="fetch" type="SupportedFetch">
+  Custom fetch implementation. Useful for testing or using alternative HTTP clients.
+</ParamField>
+
+```typescript
+import fetch from 'node-fetch'
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  fetch: fetch,
+})
+```
+
+### HTTP Agent
+
+<ParamField path="agent" type="Agent">
+  Node.js HTTP agent for connection pooling and proxy support. Silently ignored in browsers.
+</ParamField>
+
+```typescript
+import { Agent } from 'node:http'
+
+const agent = new Agent({
+  keepAlive: true,
+  maxSockets: 50,
+})
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  agent: agent,
+})
+```
+
+### Retry Configuration
+
+See [Retries](/concepts/retries) for detailed retry configuration.
+
+### Logging
+
+See [Logging](/concepts/logging) for logging configuration options.
+
+## Making Requests
+
+The client provides namespaced methods for each API resource:
+
+```typescript
+// Blocks
+await notion.blocks.retrieve({ block_id: 'block-id' })
+await notion.blocks.update({ block_id: 'block-id', ... })
+await notion.blocks.delete({ block_id: 'block-id' })
+await notion.blocks.children.list({ block_id: 'block-id' })
+await notion.blocks.children.append({ block_id: 'block-id', children: [...] })
+
+// Pages
+await notion.pages.create({ parent: { database_id: 'db-id' }, properties: {...} })
+await notion.pages.retrieve({ page_id: 'page-id' })
+await notion.pages.update({ page_id: 'page-id', properties: {...} })
+await notion.pages.move({ page_id: 'page-id', parent: {...} })
+
+// Databases
+await notion.databases.create({ parent: { page_id: 'page-id' }, ... })
+await notion.databases.retrieve({ database_id: 'db-id' })
+await notion.databases.update({ database_id: 'db-id', ... })
+
+// Data Sources
+await notion.dataSources.create({ ... })
+await notion.dataSources.retrieve({ data_source_id: 'ds-id' })
+await notion.dataSources.update({ data_source_id: 'ds-id', ... })
+await notion.dataSources.query({ data_source_id: 'ds-id', ... })
+
+// Users
+await notion.users.retrieve({ user_id: 'user-id' })
+await notion.users.list({})
+await notion.users.me({})
+
+// Comments
+await notion.comments.create({ parent: { page_id: 'page-id' }, rich_text: [...] })
+await notion.comments.retrieve({ comment_id: 'comment-id' })
+await notion.comments.list({ block_id: 'block-id' })
+
+// Search
+await notion.search({ query: 'meeting notes' })
+```
+
+## Custom Requests
+
+For advanced use cases, you can make custom requests using the `request` method:
+
+```typescript
+const response = await notion.request({
+  path: 'blocks/block-id',
+  method: 'get',
+  query: { filter_properties: 'title' },
+})
+```
+
+### Request Parameters
+
+<ParamField path="path" type="string" required>
+  The API endpoint path (without the `/v1/` prefix).
+</ParamField>
+
+<ParamField path="method" type="'get' | 'post' | 'patch' | 'delete'" required>
+  The HTTP method.
+</ParamField>
+
+<ParamField path="query" type="Record<string, string | number | boolean | string[]>">
+  URL query parameters.
+</ParamField>
+
+<ParamField path="body" type="Record<string, unknown>">
+  Request body for POST and PATCH requests.
+</ParamField>
+
+<ParamField path="auth" type="string | { client_id: string; client_secret: string }">
+  Override the client-level auth for this request.
+</ParamField>
+
+<ParamField path="headers" type="Record<string, string>">
+  Additional HTTP headers.
+</ParamField>
+
+## Per-Request Authentication
+
+You can override the client-level authentication for individual requests:
+
+```typescript
+const notion = new Client() // No default auth
+
+// Use different tokens for different requests
+await notion.pages.retrieve({ 
+  page_id: 'page-id',
+  auth: 'secret_workspace_a_token',
+})
+
+await notion.blocks.retrieve({ 
+  block_id: 'block-id',
+  auth: 'secret_workspace_b_token',
+})
+```
+
+## OAuth Authentication
+
+For OAuth flows, provide `client_id` and `client_secret`:
+
+```typescript
+const notion = new Client()
+
+// Exchange authorization code for access token
+const tokenResponse = await notion.oauth.token({
+  client_id: process.env.OAUTH_CLIENT_ID,
+  client_secret: process.env.OAUTH_CLIENT_SECRET,
+  grant_type: 'authorization_code',
+  code: authorizationCode,
+  redirect_uri: 'https://example.com/callback',
+})
+
+// Use the access token for subsequent requests
+const authedClient = new Client({
+  auth: tokenResponse.access_token,
+})
+```
+
+See the [OAuth guide](/guides/oauth) for more details.
+
+## Type Safety
+
+All methods return fully typed responses:
+
+```typescript
+import { PageObjectResponse } from '@notionhq/client'
+
+const page = await notion.pages.retrieve({ page_id: 'page-id' })
+
+// TypeScript knows the shape of the response
+if (page.object === 'page' && 'url' in page) {
+  const url: string = page.url
+  const createdTime: string = page.created_time
+}
+```
+
+See [TypeScript](/concepts/typescript) for more on working with types.

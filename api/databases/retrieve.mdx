@@ -1,0 +1,162 @@
+---
+title: "databases.retrieve"
+description: "Retrieve a database object by its ID"
+---
+
+## Overview
+
+Retrieves a database object by its ID. Returns information about the database including its title, description, parent, data sources, and metadata.
+
+```javascript
+const database = await notion.databases.retrieve({
+  database_id: '897e5a76-ae52-4b48-a6d4-0b46543ebcda'
+})
+
+console.log(database.title)
+console.log(database.data_sources)
+```
+
+## Parameters
+
+<ParamField path="database_id" type="string" required>
+  The ID of the database to retrieve. Can be a raw ID or a Notion database URL.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Optional authentication token to override the client's default token for this request.
+</ParamField>
+
+## Response
+
+Returns a `DatabaseObjectResponse` or `PartialDatabaseObjectResponse`.
+
+<ResponseField name="object" type="string">
+  Always `database`.
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the database.
+</ResponseField>
+
+<ResponseField name="title" type="array">
+  The title of the database as an array of rich text objects.
+</ResponseField>
+
+<ResponseField name="description" type="array">
+  The description of the database as an array of rich text objects.
+</ResponseField>
+
+<ResponseField name="parent" type="object">
+  The parent of the database. Can be a page, block, workspace, or another database.
+</ResponseField>
+
+<ResponseField name="is_inline" type="boolean">
+  Whether the database is displayed inline in the parent page.
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  Whether the database is in the trash.
+</ResponseField>
+
+<ResponseField name="is_locked" type="boolean">
+  Whether the database is locked from editing in the Notion app UI.
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  ISO 8601 timestamp when the database was created.
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the database was last edited.
+</ResponseField>
+
+<ResponseField name="data_sources" type="array">
+  Array of data source references contained in this database. Each reference includes an ID and name.
+</ResponseField>
+
+<ResponseField name="icon" type="object">
+  The icon of the database, or `null` if none is set.
+</ResponseField>
+
+<ResponseField name="cover" type="object">
+  The cover image of the database, or `null` if none is set.
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The URL of the database in Notion.
+</ResponseField>
+
+<ResponseField name="public_url" type="string">
+  The public URL of the database if it is publicly accessible, otherwise `null`.
+</ResponseField>
+
+## Examples
+
+### Retrieve a database
+
+```javascript
+const database = await notion.databases.retrieve({
+  database_id: '897e5a76-ae52-4b48-a6d4-0b46543ebcda'
+})
+
+console.log('Database:', database.title[0].plain_text)
+console.log('Data sources:', database.data_sources.length)
+console.log('Created:', database.created_time)
+```
+
+### Retrieve and check database properties
+
+```javascript
+const database = await notion.databases.retrieve({
+  database_id: '897e5a76-ae52-4b48'
+})
+
+if (database.is_inline) {
+  console.log('This is an inline database')
+}
+
+if (database.in_trash) {
+  console.log('This database is in the trash')
+}
+
+if (database.is_locked) {
+  console.log('This database is locked')
+}
+```
+
+### Extract database ID from URL
+
+```javascript
+const { extractDatabaseId } = require('@notionhq/client')
+
+const url = 'https://www.notion.so/myworkspace/897e5a76ae524b48a6d40b46543ebcda'
+const databaseId = extractDatabaseId(url)
+
+const database = await notion.databases.retrieve({
+  database_id: databaseId
+})
+
+console.log(database.title)
+```
+
+### Access data sources
+
+```javascript
+const database = await notion.databases.retrieve({
+  database_id: 'database-id'
+})
+
+for (const dataSource of database.data_sources) {
+  console.log(`Data source: ${dataSource.name} (${dataSource.id})`)
+  
+  const results = await notion.dataSources.query({
+    data_source_id: dataSource.id
+  })
+  
+  console.log(`  Pages: ${results.results.length}`)
+}
+```
+
+<Note>
+  To query the contents of a database, use `notion.dataSources.query()` with one of the data source IDs from the `data_sources` array.
+</Note>

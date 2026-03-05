@@ -1,0 +1,212 @@
+---
+title: "List file uploads"
+description: "Retrieve a paginated list of file uploads"
+---
+
+Returns a paginated list of file uploads for the authenticated integration. Useful for tracking upload status and managing file upload history.
+
+## Method
+
+```typescript
+client.fileUploads.list({
+  status: "uploaded",
+  page_size: 50
+})
+```
+
+## Parameters
+
+<ParamField path="status" type="string">
+  Filter file uploads by status. If not supplied, returns uploads with any status.
+  
+  Options: `"pending"` | `"uploaded"` | `"expired"` | `"failed"`
+</ParamField>
+
+<ParamField path="start_cursor" type="string">
+  Pagination cursor. If supplied, returns results starting after this cursor. If not supplied, returns the first page of results.
+</ParamField>
+
+<ParamField path="page_size" type="number">
+  Number of items to return per page. Maximum: 100. Default: 100.
+</ParamField>
+
+## Response
+
+Returns a paginated list response.
+
+<ResponseField name="object" type="string">
+  Always `"list"`
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  Array of [FileUpload objects](/api/file-uploads#file-upload-object).
+</ResponseField>
+
+<ResponseField name="next_cursor" type="string | null">
+  Cursor for the next page. `null` if there are no more results.
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more results beyond this page.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Always `"file_upload"`
+</ResponseField>
+
+## Examples
+
+### List all file uploads
+
+Retrieve all file uploads with default pagination:
+
+```typescript
+const response = await client.fileUploads.list({})
+
+console.log(`Found ${response.results.length} file uploads`)
+response.results.forEach(upload => {
+  console.log(`${upload.filename}: ${upload.status}`)
+})
+
+if (response.has_more) {
+  console.log("More results available")
+}
+```
+
+### Filter by status
+
+Get only successfully uploaded files:
+
+```typescript
+const uploaded = await client.fileUploads.list({
+  status: "uploaded"
+})
+
+console.log(`${uploaded.results.length} files successfully uploaded`)
+```
+
+Find failed uploads to retry:
+
+```typescript
+const failed = await client.fileUploads.list({
+  status: "failed"
+})
+
+failed.results.forEach(upload => {
+  console.error(`Failed upload: ${upload.filename}`)
+  if (upload.file_import_result?.type === "error") {
+    console.error(upload.file_import_result.error.message)
+  }
+})
+```
+
+### Paginate through results
+
+Iterate through all pages manually:
+
+```typescript
+let cursor: string | null = undefined
+const allUploads = []
+
+do {
+  const response = await client.fileUploads.list({
+    start_cursor: cursor,
+    page_size: 50
+  })
+  
+  allUploads.push(...response.results)
+  cursor = response.has_more ? response.next_cursor : null
+  
+} while (cursor)
+
+console.log(`Total uploads: ${allUploads.length}`)
+```
+
+Or use the built-in pagination helper:
+
+```typescript
+import { iteratePaginatedAPI } from "@notionhq/client"
+
+for await (const upload of iteratePaginatedAPI(client.fileUploads.list, {})) {
+  console.log(`${upload.filename}: ${upload.status}`)
+}
+```
+
+### Monitor pending uploads
+
+Track multi-part uploads in progress:
+
+```typescript
+const pending = await client.fileUploads.list({
+  status: "pending"
+})
+
+pending.results.forEach(upload => {
+  if (upload.number_of_parts) {
+    const progress = (upload.number_of_parts.sent / upload.number_of_parts.total) * 100
+    console.log(`${upload.filename}: ${progress.toFixed(1)}% complete`)
+  }
+})
+```
+
+### Check for expired uploads
+
+Find uploads that have expired:
+
+```typescript
+const expired = await client.fileUploads.list({
+  status: "expired"
+})
+
+if (expired.results.length > 0) {
+  console.log("The following uploads expired before completion:")
+  expired.results.forEach(upload => {
+    console.log(`- ${upload.filename} (expired at ${upload.expiry_time})`)
+  })
+}
+```
+
+### Custom page size
+
+Retrieve a specific number of results:
+
+```typescript
+const recent = await client.fileUploads.list({
+  page_size: 10
+})
+
+console.log("10 most recent file uploads:")
+recent.results.forEach(upload => {
+  console.log(`${upload.filename} - ${upload.created_time}`)
+})
+```
+
+## File Upload Object
+
+Each file upload in the results contains:
+
+- `object`: Always `"file_upload"`
+- `id`: Unique identifier
+- `status`: `"pending"`, `"uploaded"`, `"expired"`, or `"failed"`
+- `filename`: Name of the file
+- `content_type`: MIME type
+- `content_length`: File size in bytes
+- `created_time`: When the upload was created
+- `created_by`: User who created the upload
+- `last_edited_time`: Last update timestamp
+- `expiry_time`: When the upload URL expires
+- `number_of_parts`: For multi-part uploads, contains `total` and `sent` counts
+- `file_import_result`: Import result with `type`, `imported_time`, and `success` or `error` details
+
+## Notes
+
+- Results are sorted by creation time, with most recent first
+- File upload objects eventually expire and may be removed from the list
+- Use pagination helpers from `@notionhq/client` to efficiently iterate through all results
+- The `status` filter is useful for monitoring upload pipelines and handling failures
+
+## Related
+
+- [Create file upload](/api/file-uploads/create) - Initialize a new upload
+- [Send file upload](/api/file-uploads/send) - Upload file data
+- [Complete file upload](/api/file-uploads/complete) - Finalize multi-part upload

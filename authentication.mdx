@@ -1,0 +1,336 @@
+---
+title: Authentication
+description: Learn how to authenticate with the Notion API using integration tokens or OAuth
+---
+
+The Notion SDK supports two authentication methods: **Integration Tokens** for internal integrations and **OAuth** for public integrations that require user authorization.
+
+## Integration Tokens
+
+Integration tokens are the simplest way to authenticate when building internal tools or private integrations.
+
+### Getting an Integration Token
+
+<Steps>
+
+<Step title="Create an integration">
+  Visit [Notion's integration settings](https://www.notion.so/my-integrations) and create a new integration.
+</Step>
+
+<Step title="Copy your token">
+  After creating the integration, copy the **Internal Integration Token** (starts with `secret_`).
+</Step>
+
+<Step title="Store securely">
+  Store your token in an environment variable:
+  
+  ```bash .env
+  NOTION_TOKEN=secret_your_integration_token_here
+  ```
+</Step>
+
+</Steps>
+
+### Using an Integration Token
+
+Pass your token to the `Client` constructor using the `auth` option:
+
+<CodeGroup>
+
+```javascript CommonJS
+const { Client } = require("@notionhq/client")
+
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+})
+```
+
+```typescript TypeScript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+})
+```
+
+</CodeGroup>
+
+<Warning>
+**Security Best Practice**: Never hardcode tokens in your source code. Always use environment variables or a secure secrets management system.
+</Warning>
+
+### Per-Request Authentication
+
+You can also authenticate on a per-request basis, which is useful when working with multiple tokens:
+
+```javascript
+const notion = new Client() // No auth in constructor
+
+// Pass auth with each request
+const response = await notion.pages.retrieve({
+  page_id: "page-id",
+  auth: process.env.NOTION_TOKEN,
+})
+```
+
+<Info>
+Request-level `auth` parameters override the client-level `auth` option.
+</Info>
+
+## OAuth Authentication
+
+OAuth is required when building public integrations that need to access Notion workspaces on behalf of users.
+
+### OAuth Flow Overview
+
+<Steps>
+
+<Step title="User authorization">
+  Redirect users to Notion's authorization URL with your client ID.
+</Step>
+
+<Step title="Authorization code">
+  Notion redirects back to your app with an authorization code.
+</Step>
+
+<Step title="Exchange for token">
+  Exchange the authorization code for an access token using your client ID and secret.
+</Step>
+
+<Step title="Make API calls">
+  Use the access token to make authenticated API requests.
+</Step>
+
+</Steps>
+
+### Setting Up OAuth
+
+First, configure your integration for OAuth in [Notion's integration settings](https://www.notion.so/my-integrations):
+
+1. Enable **OAuth** in your integration settings
+2. Add your **Redirect URIs**
+3. Note your **Client ID** and **Client Secret**
+
+### Exchanging Authorization Code for Token
+
+After the user authorizes your integration, use the `oauth.token()` method to exchange the authorization code for an access token:
+
+```javascript
+const { Client } = require("@notionhq/client")
+
+const notion = new Client()
+
+const response = await notion.oauth.token({
+  grant_type: "authorization_code",
+  code: "authorization-code-from-redirect",
+  redirect_uri: "https://your-app.com/callback",
+  client_id: process.env.OAUTH_CLIENT_ID,
+  client_secret: process.env.OAUTH_CLIENT_SECRET,
+})
+
+// Extract the access token
+const accessToken = response.access_token
+```
+
+<Note>
+The `oauth.token()` method requires both `client_id` and `client_secret` parameters. These are passed separately and used for Basic Authentication.
+</Note>
+
+### Using OAuth Access Tokens
+
+Once you have an access token, use it to authenticate API requests:
+
+```javascript
+const notion = new Client({
+  auth: accessToken, // Use the access_token from OAuth
+})
+
+// Now you can make API calls on behalf of the user
+const users = await notion.users.list({})
+```
+
+### OAuth Token Management
+
+The SDK provides methods for managing OAuth tokens:
+
+#### Token Introspection
+
+Inspect a token to check its validity and metadata:
+
+```javascript
+const introspection = await notion.oauth.introspect({
+  token: accessToken,
+  client_id: process.env.OAUTH_CLIENT_ID,
+  client_secret: process.env.OAUTH_CLIENT_SECRET,
+})
+
+if (introspection.active) {
+  console.log("Token is valid")
+  console.log("Workspace ID:", introspection.workspace_id)
+} else {
+  console.log("Token is invalid or expired")
+}
+```
+
+#### Token Revocation
+
+Revoke an access token when it's no longer needed:
+
+```javascript
+await notion.oauth.revoke({
+  token: accessToken,
+  client_id: process.env.OAUTH_CLIENT_ID,
+  client_secret: process.env.OAUTH_CLIENT_SECRET,
+})
+
+console.log("Token revoked successfully")
+```
+
+<Warning>
+After revoking a token, it cannot be used for API requests. Users will need to re-authorize your integration.
+</Warning>
+
+## Authentication Headers
+
+The SDK handles authentication headers automatically:
+
+### Integration Token Authentication
+
+When using an integration token or OAuth access token, the SDK adds:
+
+```
+Authorization: Bearer secret_your_token_here
+```
+
+### OAuth Client Authentication
+
+For OAuth token endpoints (`token`, `introspect`, `revoke`), the SDK uses Basic Authentication:
+
+```
+Authorization: Basic base64(client_id:client_secret)
+```
+
+<Info>
+You don't need to manually construct these headers—the SDK handles them based on the authentication method you're using.
+</Info>
+
+## Error Handling
+
+Handle authentication errors using the `APIErrorCode` enum:
+
+```javascript
+const { Client, APIErrorCode, isNotionClientError } = require("@notionhq/client")
+
+try {
+  const notion = new Client({ auth: process.env.NOTION_TOKEN })
+  const response = await notion.pages.retrieve({ page_id: "page-id" })
+} catch (error) {
+  if (isNotionClientError(error)) {
+    switch (error.code) {
+      case APIErrorCode.Unauthorized:
+        console.error("Invalid or missing authentication token")
+        break
+      case APIErrorCode.RestrictedResource:
+        console.error("Integration doesn't have access to this resource")
+        break
+      default:
+        console.error("API error:", error.message)
+    }
+  } else {
+    console.error("Unexpected error:", error)
+  }
+}
+```
+
+### Common Authentication Error Codes
+
+| Error Code               | Description                                              |
+| ------------------------ | -------------------------------------------------------- |
+| `unauthorized`           | Missing or invalid authentication token                  |
+| `restricted_resource`    | Integration lacks permission to access the resource      |
+| `rate_limited`           | Too many requests; retry with exponential back-off       |
+| `invalid_request`        | Malformed request (e.g., missing required OAuth params)  |
+
+<Tip>
+Use TypeScript for better error handling with full type inference for error codes and properties.
+</Tip>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Secure Storage" icon="lock">
+    Store tokens in environment variables or secure secret management systems, never in source code.
+  </Card>
+  <Card title="Token Rotation" icon="rotate">
+    Regularly rotate integration tokens and implement token refresh for OAuth flows.
+  </Card>
+  <Card title="Minimal Permissions" icon="shield-check">
+    Request only the permissions your integration needs to function.
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation">
+    Always handle authentication errors gracefully and provide clear user feedback.
+  </Card>
+</CardGroup>
+
+## Complete OAuth Example
+
+Here's a complete example of implementing OAuth in an Express.js application:
+
+```javascript
+const express = require("express")
+const { Client } = require("@notionhq/client")
+
+const app = express()
+const notion = new Client()
+
+// Step 1: Redirect user to Notion's authorization page
+app.get("/auth", (req, res) => {
+  const clientId = process.env.OAUTH_CLIENT_ID
+  const redirectUri = "http://localhost:3000/callback"
+  const authUrl = `https://api.notion.com/v1/oauth/authorize?client_id=${clientId}&response_type=code&owner=user&redirect_uri=${encodeURIComponent(redirectUri)}`
+  
+  res.redirect(authUrl)
+})
+
+// Step 2: Handle callback and exchange code for token
+app.get("/callback", async (req, res) => {
+  const code = req.query.code
+  
+  try {
+    const response = await notion.oauth.token({
+      grant_type: "authorization_code",
+      code: code,
+      redirect_uri: "http://localhost:3000/callback",
+      client_id: process.env.OAUTH_CLIENT_ID,
+      client_secret: process.env.OAUTH_CLIENT_SECRET,
+    })
+    
+    // Store the access token securely (e.g., in a database)
+    const accessToken = response.access_token
+    
+    // Step 3: Use the token to make API calls
+    const authenticatedNotion = new Client({ auth: accessToken })
+    const users = await authenticatedNotion.users.list({})
+    
+    res.json({ success: true, users: users.results })
+  } catch (error) {
+    console.error("OAuth error:", error)
+    res.status(500).json({ error: "OAuth failed" })
+  }
+})
+
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000")
+})
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Client Configuration" icon="gear" href="/client-configuration">
+    Explore advanced client configuration options
+  </Card>
+  <Card title="Error Handling" icon="bug" href="/error-handling">
+    Learn comprehensive error handling techniques
+  </Card>
+</CardGroup>

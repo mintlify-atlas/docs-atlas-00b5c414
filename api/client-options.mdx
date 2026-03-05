@@ -1,0 +1,225 @@
+---
+title: ClientOptions
+description: Configuration options for the Notion API client
+---
+
+The `ClientOptions` interface defines all configuration options that can be passed to the `Client` constructor.
+
+## Type Definition
+
+```typescript
+type ClientOptions = {
+  auth?: string
+  timeoutMs?: number
+  baseUrl?: string
+  logLevel?: LogLevel
+  logger?: Logger
+  notionVersion?: string
+  fetch?: SupportedFetch
+  agent?: Agent
+  retry?: RetryOptions | false
+}
+```
+
+## Properties
+
+<ParamField path="auth" type="string" optional>
+  The Notion API token or OAuth access token for authentication.
+
+  **Default:** `undefined` (must be provided per-request or set on the client)
+
+  ```typescript
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+  })
+  ```
+</ParamField>
+
+<ParamField path="logLevel" type="LogLevel" optional>
+  The minimum log level for console output. Use `LogLevel.DEBUG`, `LogLevel.INFO`, `LogLevel.WARN`, or `LogLevel.ERROR`.
+
+  **Default:** `LogLevel.WARN`
+
+  ```typescript
+  import { Client, LogLevel } from "@notionhq/client"
+
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+    logLevel: LogLevel.DEBUG,
+  })
+  ```
+</ParamField>
+
+<ParamField path="timeoutMs" type="number" optional>
+  Request timeout in milliseconds.
+
+  **Default:** `60000` (60 seconds)
+
+  ```typescript
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+    timeoutMs: 30000, // 30 seconds
+  })
+  ```
+</ParamField>
+
+<ParamField path="baseUrl" type="string" optional>
+  The base URL for the Notion API. Useful for testing or proxying requests.
+
+  **Default:** `"https://api.notion.com"`
+
+  ```typescript
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+    baseUrl: "https://api-proxy.example.com",
+  })
+  ```
+</ParamField>
+
+<ParamField path="logger" type="Logger" optional>
+  Custom logger function that receives log level, message, and extra information.
+
+  **Default:** `makeConsoleLogger("@notionhq/client")`
+
+  **Type signature:**
+  ```typescript
+  type Logger = (
+    level: LogLevel,
+    message: string,
+    extraInfo: Record<string, unknown>
+  ) => void
+  ```
+
+  **Example:**
+  ```typescript
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+    logger: (level, message, extraInfo) => {
+      console.log(`[${level}] ${message}`, extraInfo)
+    },
+  })
+  ```
+</ParamField>
+
+<ParamField path="notionVersion" type="string" optional>
+  The Notion API version to use. This sets the `Notion-Version` header.
+
+  **Default:** `"2025-09-03"` (from `Client.defaultNotionVersion`)
+
+  ```typescript
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+    notionVersion: "2025-09-03",
+  })
+  ```
+</ParamField>
+
+<ParamField path="fetch" type="SupportedFetch" optional>
+  Custom fetch implementation. Useful for testing or using alternative fetch libraries.
+
+  **Default:** `fetch` (global fetch)
+
+  **Type signature:**
+  ```typescript
+  type SupportedFetch = (
+    url: string,
+    init?: SupportedRequestInit
+  ) => Promise<SupportedResponse>
+  ```
+
+  **Example:**
+  ```typescript
+  import nodeFetch from "node-fetch"
+
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+    fetch: nodeFetch as any,
+  })
+  ```
+</ParamField>
+
+<ParamField path="agent" type="Agent" optional>
+  HTTP agent for Node.js requests. Silently ignored in browser environments.
+
+  **Default:** `undefined`
+
+  **Type:** `import("node:http").Agent`
+
+  **Example:**
+  ```typescript
+  import { Agent } from "node:http"
+
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+    agent: new Agent({ keepAlive: true }),
+  })
+  ```
+</ParamField>
+
+<ParamField path="retry" type="RetryOptions | false" optional>
+  Configuration for automatic retries on rate limit (429) and server errors. Set to `false` to disable retries entirely.
+
+  **Default:** `{ maxRetries: 2, initialRetryDelayMs: 1000, maxRetryDelayMs: 60000 }`
+
+  **RetryOptions type:**
+  ```typescript
+  type RetryOptions = {
+    maxRetries?: number           // Default: 2
+    initialRetryDelayMs?: number  // Default: 1000
+    maxRetryDelayMs?: number      // Default: 60000
+  }
+  ```
+
+  **Retry behavior:**
+  - Rate limits (429) are always retried for all HTTP methods
+  - Server errors (500, 503) are only retried for idempotent methods (GET, DELETE)
+  - Uses `retry-after` header when present, otherwise exponential back-off with jitter
+
+  **Example - custom retry settings:**
+  ```typescript
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+    retry: {
+      maxRetries: 3,
+      initialRetryDelayMs: 2000,
+      maxRetryDelayMs: 30000,
+    },
+  })
+  ```
+
+  **Example - disable retries:**
+  ```typescript
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+    retry: false,
+  })
+  ```
+</ParamField>
+
+## Related Types
+
+### LogLevel
+
+```typescript
+enum LogLevel {
+  DEBUG = "debug",
+  INFO = "info",
+  WARN = "warn",
+  ERROR = "error",
+}
+```
+
+### RetryOptions
+
+```typescript
+type RetryOptions = {
+  maxRetries?: number           // Default: 2
+  initialRetryDelayMs?: number  // Default: 1000
+  maxRetryDelayMs?: number      // Default: 60000
+}
+```
+
+## See Also
+
+- [Client](/api/client) - The main client class
+- [Error Handling](/guides/error-handling) - Learn about error types and retry behavior

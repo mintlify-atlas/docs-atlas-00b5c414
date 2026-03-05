@@ -1,0 +1,290 @@
+---
+title: "databases.create"
+description: "Create a new database in a parent page or workspace"
+---
+
+## Overview
+
+Creates a new database as a child of an existing page or in the workspace. Databases are containers that can hold one or more data sources.
+
+```javascript
+const database = await notion.databases.create({
+  parent: {
+    type: 'page_id',
+    page_id: 'parent-page-id'
+  },
+  title: [
+    {
+      type: 'text',
+      text: { content: 'Project Database' }
+    }
+  ],
+  initial_data_source: {
+    properties: {
+      Name: {
+        title: {}
+      },
+      Status: {
+        select: {
+          options: [
+            { name: 'Not started', color: 'gray' },
+            { name: 'In progress', color: 'blue' },
+            { name: 'Complete', color: 'green' }
+          ]
+        }
+      }
+    }
+  }
+})
+```
+
+## Parameters
+
+<ParamField path="parent" type="object" required>
+  The parent page or workspace where the database will be created.
+  
+  <Expandable title="properties">
+    <ParamField path="type" type="string" required>
+      The type of parent. Either `page_id` or `workspace`.
+    </ParamField>
+    
+    <ParamField path="page_id" type="string">
+      The ID of the parent page. Required when `type` is `page_id`.
+    </ParamField>
+    
+    <ParamField path="workspace" type="boolean">
+      Must be `true` when `type` is `workspace`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="title" type="array">
+  The title of the database as an array of rich text objects.
+</ParamField>
+
+<ParamField path="description" type="array">
+  The description of the database as an array of rich text objects.
+</ParamField>
+
+<ParamField path="is_inline" type="boolean" default="false">
+  Whether the database should be displayed inline in the parent page.
+</ParamField>
+
+<ParamField path="initial_data_source" type="object">
+  Initial data source configuration for the database.
+  
+  <Expandable title="properties">
+    <ParamField path="properties" type="object">
+      Property schema for the initial data source. A record where keys are property names and values are property configuration objects.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="icon" type="object">
+  The icon for the database. Can be an emoji, external URL, or file upload.
+</ParamField>
+
+<ParamField path="cover" type="object">
+  The cover image for the database. Can be an external URL or file upload.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Optional authentication token to override the client's default token for this request.
+</ParamField>
+
+## Response
+
+Returns a `DatabaseObjectResponse` or `PartialDatabaseObjectResponse`.
+
+<ResponseField name="object" type="string">
+  Always `database`.
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the database.
+</ResponseField>
+
+<ResponseField name="title" type="array">
+  The title of the database as an array of rich text objects.
+</ResponseField>
+
+<ResponseField name="description" type="array">
+  The description of the database as an array of rich text objects.
+</ResponseField>
+
+<ResponseField name="parent" type="object">
+  The parent page or workspace of the database.
+</ResponseField>
+
+<ResponseField name="is_inline" type="boolean">
+  Whether the database is displayed inline in the parent page.
+</ResponseField>
+
+<ResponseField name="is_locked" type="boolean">
+  Whether the database is locked from editing in the Notion app UI.
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  Whether the database is in the trash.
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  ISO 8601 timestamp when the database was created.
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the database was last edited.
+</ResponseField>
+
+<ResponseField name="data_sources" type="array">
+  Array of data source references contained in this database.
+</ResponseField>
+
+<ResponseField name="icon" type="object">
+  The icon of the database.
+</ResponseField>
+
+<ResponseField name="cover" type="object">
+  The cover image of the database.
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The URL of the database in Notion.
+</ResponseField>
+
+<ResponseField name="public_url" type="string">
+  The public URL of the database if it is publicly accessible, otherwise `null`.
+</ResponseField>
+
+## Examples
+
+### Create a database in a page
+
+```javascript
+const database = await notion.databases.create({
+  parent: {
+    type: 'page_id',
+    page_id: '897e5a76-ae52-4b48-a6d4-0b46543ebcda'
+  },
+  title: [
+    {
+      type: 'text',
+      text: { content: 'Tasks' }
+    }
+  ],
+  initial_data_source: {
+    properties: {
+      Name: {
+        title: {}
+      },
+      Status: {
+        select: {
+          options: [
+            { name: 'To Do', color: 'red' },
+            { name: 'In Progress', color: 'yellow' },
+            { name: 'Done', color: 'green' }
+          ]
+        }
+      },
+      Priority: {
+        select: {
+          options: [
+            { name: 'High', color: 'red' },
+            { name: 'Medium', color: 'yellow' },
+            { name: 'Low', color: 'gray' }
+          ]
+        }
+      },
+      'Due Date': {
+        date: {}
+      }
+    }
+  }
+})
+
+console.log(database.id)
+```
+
+### Create a database in workspace
+
+```javascript
+const database = await notion.databases.create({
+  parent: {
+    type: 'workspace',
+    workspace: true
+  },
+  title: [
+    {
+      type: 'text',
+      text: { content: 'Company Directory' }
+    }
+  ],
+  description: [
+    {
+      type: 'text',
+      text: { content: 'Employee contact information' }
+    }
+  ],
+  icon: {
+    type: 'emoji',
+    emoji: '👥'
+  },
+  initial_data_source: {
+    properties: {
+      Name: {
+        title: {}
+      },
+      Email: {
+        email: {}
+      },
+      Department: {
+        select: {
+          options: [
+            { name: 'Engineering', color: 'blue' },
+            { name: 'Product', color: 'purple' },
+            { name: 'Sales', color: 'green' }
+          ]
+        }
+      }
+    }
+  }
+})
+```
+
+### Create an inline database
+
+```javascript
+const database = await notion.databases.create({
+  parent: {
+    type: 'page_id',
+    page_id: 'parent-page-id'
+  },
+  title: [
+    {
+      type: 'text',
+      text: { content: 'Quick Notes' }
+    }
+  ],
+  is_inline: true,
+  initial_data_source: {
+    properties: {
+      Title: {
+        title: {}
+      },
+      Tags: {
+        multi_select: {
+          options: [
+            { name: 'Important', color: 'red' },
+            { name: 'Personal', color: 'blue' },
+            { name: 'Work', color: 'green' }
+          ]
+        }
+      }
+    }
+  }
+})
+```
+
+<Note>
+  After creating a database, you can query its data sources using `notion.dataSources.query()`.
+</Note>

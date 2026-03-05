@@ -1,0 +1,368 @@
+---
+title: "Error Codes"
+description: "Error code enums and their meanings"
+---
+
+The Notion SDK uses two enums to categorize errors: `APIErrorCode` for server-side errors and `ClientErrorCode` for client-side errors.
+
+## APIErrorCode
+
+Error codes returned by the Notion API in error responses. These are set as the `code` property on `APIResponseError`.
+
+### Enum Values
+
+```typescript
+enum APIErrorCode {
+  Unauthorized = "unauthorized",
+  RestrictedResource = "restricted_resource",
+  ObjectNotFound = "object_not_found",
+  RateLimited = "rate_limited",
+  InvalidJSON = "invalid_json",
+  InvalidRequestURL = "invalid_request_url",
+  InvalidRequest = "invalid_request",
+  ValidationError = "validation_error",
+  ConflictError = "conflict_error",
+  InternalServerError = "internal_server_error",
+  ServiceUnavailable = "service_unavailable",
+}
+```
+
+### Error Descriptions
+
+#### `unauthorized`
+
+The request lacks valid authentication credentials or the token has insufficient permissions.
+
+**Common causes:**
+- Missing or invalid authentication token
+- Token has been revoked
+- Integration lacks required capabilities
+
+**Example:**
+
+```typescript
+import { APIResponseError, APIErrorCode } from "@notionhq/client"
+
+try {
+  const page = await notion.pages.retrieve({ page_id: pageId })
+} catch (error) {
+  if (
+    APIResponseError.isAPIResponseError(error) &&
+    error.code === APIErrorCode.Unauthorized
+  ) {
+    console.error("Check your NOTION_TOKEN environment variable")
+  }
+}
+```
+
+#### `restricted_resource`
+
+The integration doesn't have permission to access the requested resource.
+
+**Common causes:**
+- Page or database not shared with the integration
+- User lacks permission to the resource
+
+**Example:**
+
+```typescript
+if (error.code === APIErrorCode.RestrictedResource) {
+  console.error("Integration doesn't have access to this resource")
+  console.error("Share the page/database with your integration in Notion")
+}
+```
+
+#### `object_not_found`
+
+The requested object doesn't exist or the integration doesn't have access to it.
+
+**Common causes:**
+- Invalid ID
+- Object has been deleted
+- Integration lacks access (appears as not found for security)
+
+**Example:**
+
+```typescript
+if (error.code === APIErrorCode.ObjectNotFound) {
+  console.error("Page not found or integration lacks access")
+  return null // Handle gracefully
+}
+```
+
+#### `rate_limited`
+
+The integration has exceeded its rate limit.
+
+**Common causes:**
+- Too many requests in a short time period
+- Concurrent request limits exceeded
+
+**Retry behavior:**
+The SDK automatically retries rate-limited requests. The `retry-after` header is respected if present.
+
+**Example:**
+
+```typescript
+if (error.code === APIErrorCode.RateLimited) {
+  console.error("Rate limited - SDK will retry automatically")
+  // The SDK handles this, but you can implement additional backoff if needed
+}
+```
+
+#### `invalid_json`
+
+The request body contains invalid JSON.
+
+**Common causes:**
+- Malformed JSON string
+- Incorrect content-type header
+
+#### `invalid_request_url`
+
+The request URL is malformed or contains invalid parameters.
+
+**Common causes:**
+- Incorrect endpoint path
+- Invalid query parameters
+
+#### `invalid_request`
+
+The request is invalid but doesn't fit other categories.
+
+**Common causes:**
+- Missing required parameters
+- Invalid parameter combinations
+
+#### `validation_error`
+
+The request parameters failed validation.
+
+**Common causes:**
+- Invalid property types
+- Missing required fields
+- Value constraints violated (e.g., title too long)
+
+**Example:**
+
+```typescript
+if (error.code === APIErrorCode.ValidationError) {
+  console.error("Validation failed:", error.message)
+  if (error.additional_data) {
+    console.error("Details:", error.additional_data)
+  }
+}
+```
+
+#### `conflict_error`
+
+The request conflicts with the current state of the resource.
+
+**Common causes:**
+- Concurrent modifications to the same resource
+- Resource in an incompatible state for the operation
+
+**Example:**
+
+```typescript
+if (error.code === APIErrorCode.ConflictError) {
+  // Retry the operation after fetching the latest state
+  const latestPage = await notion.pages.retrieve({ page_id: pageId })
+  // Retry update with fresh data
+}
+```
+
+#### `internal_server_error`
+
+Notion's servers encountered an unexpected error.
+
+**Retry behavior:**
+The SDK automatically retries these errors for idempotent methods (GET, DELETE) only.
+
+**Example:**
+
+```typescript
+if (error.code === APIErrorCode.InternalServerError) {
+  console.error("Server error - SDK will retry if appropriate")
+  console.error(`Request ID: ${error.request_id}`)
+}
+```
+
+#### `service_unavailable`
+
+Notion's API is temporarily unavailable.
+
+**Retry behavior:**
+The SDK automatically retries these errors for idempotent methods (GET, DELETE) only.
+
+**Example:**
+
+```typescript
+if (error.code === APIErrorCode.ServiceUnavailable) {
+  console.error("API temporarily unavailable")
+}
+```
+
+## ClientErrorCode
+
+Error codes generated by the SDK for client-side errors. These indicate issues with the request before it reaches the Notion API.
+
+### Enum Values
+
+```typescript
+enum ClientErrorCode {
+  RequestTimeout = "notionhq_client_request_timeout",
+  ResponseError = "notionhq_client_response_error",
+  InvalidPathParameter = "notionhq_client_invalid_path_parameter",
+}
+```
+
+### Error Descriptions
+
+#### `notionhq_client_request_timeout`
+
+The request exceeded the configured timeout.
+
+**Default timeout:** 60 seconds
+
+**Example:**
+
+```typescript
+import { ClientErrorCode } from "@notionhq/client"
+
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  timeoutMs: 30000, // 30 seconds
+})
+
+try {
+  await notion.databases.query({ database_id: dbId })
+} catch (error) {
+  if (isNotionClientError(error) && error.code === ClientErrorCode.RequestTimeout) {
+    console.error("Request timed out after 30 seconds")
+  }
+}
+```
+
+#### `notionhq_client_response_error`
+
+The API returned an unexpected response format.
+
+**Common causes:**
+- Network errors
+- Proxy or firewall interference
+- Response doesn't match expected error format
+
+**Example:**
+
+```typescript
+if (error.code === ClientErrorCode.ResponseError) {
+  console.error("Unexpected response format")
+  console.error(`Status: ${error.status}`)
+  console.error(`Body: ${error.body}`)
+}
+```
+
+#### `notionhq_client_invalid_path_parameter`
+
+A path parameter contains invalid characters that could alter the request path.
+
+**Common causes:**
+- Path traversal attempts (`..`)
+- URL-encoded traversal sequences (`%2e%2e`)
+
+**Example:**
+
+```typescript
+try {
+  // This will throw InvalidPathParameterError
+  await notion.pages.retrieve({ page_id: "../etc/passwd" })
+} catch (error) {
+  if (error.code === ClientErrorCode.InvalidPathParameter) {
+    console.error("Invalid characters in page ID")
+  }
+}
+```
+
+## NotionErrorCode Type
+
+A union type combining both error code enums:
+
+```typescript
+type NotionErrorCode = APIErrorCode | ClientErrorCode
+```
+
+This type represents all possible `code` values on `NotionClientError`.
+
+## Using Error Codes in Practice
+
+### Switch Statement Pattern
+
+```typescript
+import {
+  APIResponseError,
+  APIErrorCode,
+  ClientErrorCode,
+} from "@notionhq/client"
+
+try {
+  await notion.pages.retrieve({ page_id: pageId })
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    switch (error.code) {
+      case APIErrorCode.ObjectNotFound:
+        return null
+      case APIErrorCode.RateLimited:
+        await sleep(1000)
+        return retry()
+      case APIErrorCode.Unauthorized:
+      case APIErrorCode.RestrictedResource:
+        throw new Error("Access denied")
+      case APIErrorCode.ValidationError:
+        console.error("Invalid data:", error.additional_data)
+        break
+      case APIErrorCode.ConflictError:
+        return retryWithFreshData()
+      default:
+        console.error("Unexpected API error:", error.code)
+    }
+  }
+}
+```
+
+### Filtering by Error Type
+
+```typescript
+import { isNotionClientError, APIErrorCode } from "@notionhq/client"
+
+const retryableErrors = new Set([
+  APIErrorCode.RateLimited,
+  APIErrorCode.InternalServerError,
+  APIErrorCode.ServiceUnavailable,
+])
+
+try {
+  await notion.pages.retrieve({ page_id: pageId })
+} catch (error) {
+  if (isNotionClientError(error) && retryableErrors.has(error.code)) {
+    // Implement custom retry logic
+  }
+}
+```
+
+### Logging Error Codes
+
+```typescript
+import { isNotionClientError } from "@notionhq/client"
+
+try {
+  await notion.pages.retrieve({ page_id: pageId })
+} catch (error) {
+  if (isNotionClientError(error)) {
+    console.error(`[${error.code}] ${error.message}`)
+    if ("request_id" in error) {
+      console.error(`Request ID: ${error.request_id}`)
+    }
+  }
+}
+```

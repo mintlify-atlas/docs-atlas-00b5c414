@@ -1,0 +1,363 @@
+---
+title: Markdown Operations
+description: Retrieve and update page content as Notion-flavored Markdown
+---
+
+The Notion SDK provides methods to work with page content as Markdown, making it easy to export or programmatically update page content.
+
+## pages.retrieveMarkdown
+
+Retrieves a page's content rendered as Notion-flavored Markdown.
+
+### Method Signature
+
+```typescript
+notion.pages.retrieveMarkdown(args: GetPageMarkdownParameters): Promise<PageMarkdownResponse>
+```
+
+### Parameters
+
+<ParamField path="page_id" type="string" required>
+  The ID of the page (or block) to retrieve as markdown. Non-navigable block IDs from truncated responses can be passed here to fetch their subtrees.
+</ParamField>
+
+<ParamField path="include_transcript" type="boolean">
+  Whether to include meeting note transcripts. Defaults to `false`.
+  
+  - When `true`: Full transcripts are included in the markdown
+  - When `false`: A placeholder with the meeting note URL is shown instead
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. Overrides the client-level authentication.
+</ParamField>
+
+### Response
+
+<ResponseField name="object" type="string">
+  Always `"page_markdown"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the page or block
+</ResponseField>
+
+<ResponseField name="markdown" type="string">
+  The page content rendered as enhanced Markdown
+</ResponseField>
+
+<ResponseField name="truncated" type="boolean">
+  Whether the content was truncated due to exceeding the record count limit
+</ResponseField>
+
+<ResponseField name="unknown_block_ids" type="array">
+  Block IDs that could not be loaded (appeared as `<unknown>` tags in the markdown). Pass these IDs back to this endpoint to fetch their content separately.
+</ResponseField>
+
+### Examples
+
+#### Basic Markdown Retrieval
+
+```typescript
+const response = await notion.pages.retrieveMarkdown({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+})
+
+console.log(response.markdown)
+```
+
+#### Save Page as Markdown File
+
+```typescript
+import * as fs from "fs"
+
+const response = await notion.pages.retrieveMarkdown({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+})
+
+fs.writeFileSync("page-export.md", response.markdown, "utf8")
+console.log("Page exported to page-export.md")
+```
+
+#### Include Meeting Transcripts
+
+```typescript
+const response = await notion.pages.retrieveMarkdown({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  include_transcript: true,
+})
+
+console.log("Markdown with transcripts:", response.markdown)
+```
+
+#### Handle Truncated Content
+
+```typescript
+const response = await notion.pages.retrieveMarkdown({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+})
+
+if (response.truncated) {
+  console.log("Content was truncated")
+  console.log("Unknown block IDs:", response.unknown_block_ids)
+  
+  // Fetch unknown blocks separately
+  for (const blockId of response.unknown_block_ids) {
+    const blockMarkdown = await notion.pages.retrieveMarkdown({
+      page_id: blockId,
+    })
+    console.log(`Block ${blockId}:`, blockMarkdown.markdown)
+  }
+}
+```
+
+---
+
+## pages.updateMarkdown
+
+Updates a page's content using Notion-flavored Markdown. You can insert new content or replace existing content ranges.
+
+### Method Signature
+
+```typescript
+notion.pages.updateMarkdown(args: UpdatePageMarkdownParameters): Promise<PageMarkdownResponse>
+```
+
+### Parameters
+
+<ParamField path="page_id" type="string" required>
+  The ID of the page to update.
+</ParamField>
+
+<ParamField path="type" type="string" required>
+  The type of update operation. One of:
+  - `"insert_content"` - Insert new content into the page
+  - `"replace_content_range"` - Replace a range of existing content
+</ParamField>
+
+#### For `insert_content` type:
+
+<ParamField path="insert_content" type="object" required>
+  Configuration for inserting new content.
+  
+  <Expandable title="Fields">
+    <ParamField path="content" type="string" required>
+      The enhanced markdown content to insert into the page
+    </ParamField>
+    
+    <ParamField path="after" type="string">
+      Selection of existing content to insert after, using the ellipsis format (`"start text...end text"`). Omit to append at the end of the page.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+#### For `replace_content_range` type:
+
+<ParamField path="replace_content_range" type="object" required>
+  Configuration for replacing existing content.
+  
+  <Expandable title="Fields">
+    <ParamField path="content" type="string" required>
+      The new enhanced markdown content to replace the matched range
+    </ParamField>
+    
+    <ParamField path="content_range" type="string" required>
+      Selection of existing content to replace, using the ellipsis format (`"start text...end text"`)
+    </ParamField>
+    
+    <ParamField path="allow_deleting_content" type="boolean">
+      Set to `true` to allow the operation to delete child pages or databases. Defaults to `false`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. Overrides the client-level authentication.
+</ParamField>
+
+### Response
+
+Same as `retrieveMarkdown` - returns a `PageMarkdownResponse` with the updated content.
+
+### Examples
+
+#### Insert Content at End
+
+```typescript
+const response = await notion.pages.updateMarkdown({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  type: "insert_content",
+  insert_content: {
+    content: `
+## New Section
+
+This content is added to the end of the page.
+
+- Item 1
+- Item 2
+- Item 3
+`,
+  },
+})
+
+console.log("Content inserted")
+```
+
+#### Insert Content After Specific Text
+
+```typescript
+const response = await notion.pages.updateMarkdown({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  type: "insert_content",
+  insert_content: {
+    content: `
+### Additional Details
+
+More information about the topic.
+`,
+    after: "## Introduction...## Methods",
+  },
+})
+
+console.log("Content inserted after Introduction section")
+```
+
+#### Replace Content Range
+
+```typescript
+const response = await notion.pages.updateMarkdown({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  type: "replace_content_range",
+  replace_content_range: {
+    content: `
+## Updated Section
+
+This is the new content.
+`,
+    content_range: "## Old Section...## Next Section",
+  },
+})
+
+console.log("Content replaced")
+```
+
+#### Replace with Permission to Delete
+
+```typescript
+const response = await notion.pages.updateMarkdown({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  type: "replace_content_range",
+  replace_content_range: {
+    content: "## Simplified Section\n\nNew simplified content.",
+    content_range: "## Complex Section...## Conclusion",
+    allow_deleting_content: true,
+  },
+})
+
+console.log("Content replaced (including child pages)")
+```
+
+#### Update Documentation from Git
+
+```typescript
+import * as fs from "fs"
+
+// Read markdown from a file
+const markdownContent = fs.readFileSync("./docs/api-guide.md", "utf8")
+
+// Replace the documentation section
+const response = await notion.pages.updateMarkdown({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  type: "replace_content_range",
+  replace_content_range: {
+    content: markdownContent,
+    content_range: "## API Guide...## Examples",
+  },
+})
+
+console.log("Documentation updated from Git")
+```
+
+#### Append Daily Log Entry
+
+```typescript
+const today = new Date().toISOString().split("T")[0]
+
+const response = await notion.pages.updateMarkdown({
+  page_id: "daily-log-page-id",
+  type: "insert_content",
+  insert_content: {
+    content: `
+### ${today}
+
+- Completed feature X
+- Fixed bug in module Y
+- Updated documentation
+`,
+  },
+})
+
+console.log("Daily log entry added")
+```
+
+## Content Selection Format
+
+The `after` and `content_range` parameters use an ellipsis format to select content:
+
+```
+"start text...end text"
+```
+
+- **Start text**: The beginning of the content range
+- **End text**: The end of the content range
+- **Ellipsis (`...`)**: Separator between start and end
+
+### Examples:
+
+- `"## Introduction...## Methods"` - Selects from "Introduction" heading to "Methods" heading
+- `"First paragraph...Last paragraph"` - Selects text between these paragraphs
+- `"# Title...---"` - Selects from title to a divider
+
+## Notion-Flavored Markdown
+
+Notion's markdown flavor supports:
+
+- Standard Markdown syntax (headings, lists, bold, italic, etc.)
+- Code blocks with syntax highlighting
+- Tables
+- Callouts and quotes
+- Links and inline mentions
+- LaTeX equations
+- Embeds and media
+
+For detailed syntax, see [Notion's Markdown documentation](https://www.notion.so/help/writing-and-editing-basics#markdown-&-shortcuts).
+
+## Important Notes
+
+<Warning>
+When using `replace_content_range`, be careful with the `content_range` selection. If the selection is ambiguous or matches multiple locations, the operation may fail or produce unexpected results.
+</Warning>
+
+<Note>
+The `truncated` field in the response indicates if the page has more content than can be returned in a single response. Use the `unknown_block_ids` to fetch additional content.
+</Note>
+
+<Tip>
+Use markdown operations for:
+- Exporting Notion pages to static site generators
+- Programmatically updating documentation
+- Syncing content from external sources
+- Automating content generation
+</Tip>
+
+## Related Methods
+
+- [pages.create](/api/pages/create) - Create a page with markdown content
+- [pages.retrieve](/api/pages/retrieve) - Retrieve page properties and metadata
+- [blocks.children.list](/api/blocks/children) - List block children for detailed structure
+
+## See Also
+
+- [Notion API: Retrieve page as markdown](https://developers.notion.com/reference/get-page-markdown)
+- [Notion API: Update page with markdown](https://developers.notion.com/reference/patch-page-markdown)
+- [Working with Markdown](https://www.notion.so/help/writing-and-editing-basics#markdown-&-shortcuts)

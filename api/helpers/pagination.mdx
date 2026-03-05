@@ -1,0 +1,96 @@
+---
+title: "Pagination Helpers"
+description: "Utilities for handling paginated API responses"
+---
+
+The Notion SDK provides helper functions to simplify working with paginated API endpoints.
+
+## iteratePaginatedAPI
+
+Returns an async iterator over the results of any paginated Notion API. This is memory-efficient for large datasets as it fetches pages on demand.
+
+### Signature
+
+```typescript
+async function* iteratePaginatedAPI<Args extends PaginatedArgs, Item>(
+  listFn: (args: Args) => Promise<PaginatedList<Item>>,
+  firstPageArgs: Args
+): AsyncIterableIterator<Item>
+```
+
+### Parameters
+
+- `listFn` - A bound function on the Notion client that represents a conforming paginated API (e.g., `notion.blocks.children.list`)
+- `firstPageArgs` - Arguments that should be passed to the API on the first and subsequent calls. Any necessary `next_cursor` will be automatically populated by this function
+
+### Example
+
+```typescript
+import { iteratePaginatedAPI } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+for await (const block of iteratePaginatedAPI(notion.blocks.children.list, {
+  block_id: parentBlockId,
+})) {
+  console.log(block.id, block.type)
+}
+```
+
+## collectPaginatedAPI
+
+Collects all results of paginating an API into an in-memory array. Use this for smaller datasets when you need all results at once.
+
+### Signature
+
+```typescript
+async function collectPaginatedAPI<Args extends PaginatedArgs, Item>(
+  listFn: (args: Args) => Promise<PaginatedList<Item>>,
+  firstPageArgs: Args
+): Promise<Item[]>
+```
+
+### Parameters
+
+- `listFn` - A bound function on the Notion client that represents a conforming paginated API (e.g., `notion.blocks.children.list`)
+- `firstPageArgs` - Arguments that should be passed to the API on the first and subsequent calls. Any necessary `next_cursor` will be automatically populated by this function
+
+### Example
+
+```typescript
+import { collectPaginatedAPI } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+const blocks = await collectPaginatedAPI(notion.blocks.children.list, {
+  block_id: parentBlockId,
+})
+
+console.log(`Found ${blocks.length} blocks`)
+blocks.forEach(block => {
+  console.log(block.id, block.type)
+})
+```
+
+## When to Use Each Helper
+
+**Use `iteratePaginatedAPI`** when:
+- Working with large datasets that might not fit in memory
+- You want to process items as they arrive
+- You may not need all results (e.g., searching for a specific item)
+
+**Use `collectPaginatedAPI`** when:
+- The dataset is small enough to fit in memory
+- You need all results before processing
+- You need to perform operations that require the full dataset (sorting, filtering, etc.)
+
+## Supported Endpoints
+
+These helpers work with any paginated Notion API endpoint, including:
+
+- `notion.blocks.children.list`
+- `notion.databases.query`
+- `notion.users.list`
+- `notion.comments.list`
+- `notion.search`
+- And more

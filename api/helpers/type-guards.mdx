@@ -1,0 +1,264 @@
+---
+title: "Type Guards"
+description: "Runtime type checking for Notion API responses"
+---
+
+The Notion SDK provides type guard functions to help you narrow TypeScript types at runtime and distinguish between full and partial response objects.
+
+## Block Type Guards
+
+### isFullBlock
+
+Checks if a response is a full `BlockObjectResponse` (not a partial block).
+
+```typescript
+function isFullBlock(
+  response: ObjectResponse
+): response is BlockObjectResponse
+```
+
+**Example:**
+
+```typescript
+import { isFullBlock } from "@notionhq/client"
+
+const response = await notion.blocks.retrieve({ block_id: blockId })
+
+if (isFullBlock(response)) {
+  // TypeScript knows response is BlockObjectResponse
+  console.log(response.type) // "paragraph", "heading_1", etc.
+  console.log(response.created_time)
+}
+```
+
+## Page Type Guards
+
+### isFullPage
+
+Checks if a response is a full `PageObjectResponse` (not a partial page).
+
+```typescript
+function isFullPage(
+  response: ObjectResponse
+): response is PageObjectResponse
+```
+
+**Example:**
+
+```typescript
+import { isFullPage } from "@notionhq/client"
+
+const response = await notion.pages.retrieve({ page_id: pageId })
+
+if (isFullPage(response)) {
+  console.log(response.url)
+  console.log(response.properties)
+}
+```
+
+### isFullPageOrDataSource
+
+Checks if a response is a full `PageObjectResponse` or `DataSourceObjectResponse`. Useful when working with `search` or `queryDataSource` results.
+
+```typescript
+function isFullPageOrDataSource(
+  response: ObjectResponse
+): response is DataSourceObjectResponse | PageObjectResponse
+```
+
+**Example:**
+
+```typescript
+import { isFullPageOrDataSource } from "@notionhq/client"
+
+const results = await notion.search({
+  query: "my page",
+})
+
+results.results.forEach(result => {
+  if (isFullPageOrDataSource(result)) {
+    console.log(result.id)
+  }
+})
+```
+
+## Database Type Guards
+
+### isFullDatabase
+
+Checks if a response is a full `DatabaseObjectResponse` (not a partial database).
+
+```typescript
+function isFullDatabase(
+  response: ObjectResponse
+): response is DatabaseObjectResponse
+```
+
+**Example:**
+
+```typescript
+import { isFullDatabase } from "@notionhq/client"
+
+const response = await notion.databases.retrieve({ database_id: databaseId })
+
+if (isFullDatabase(response)) {
+  console.log(response.title)
+  console.log(response.properties)
+}
+```
+
+## Data Source Type Guards
+
+### isFullDataSource
+
+Checks if a response is a full `DataSourceObjectResponse`.
+
+```typescript
+function isFullDataSource(
+  response: ObjectResponse
+): response is DataSourceObjectResponse
+```
+
+**Example:**
+
+```typescript
+import { isFullDataSource } from "@notionhq/client"
+
+if (isFullDataSource(response)) {
+  console.log(response.object) // "data_source"
+}
+```
+
+## User Type Guards
+
+### isFullUser
+
+Checks if a response is a full `UserObjectResponse` (not a partial user).
+
+```typescript
+function isFullUser(
+  response: UserObjectResponse | PartialUserObjectResponse
+): response is UserObjectResponse
+```
+
+**Example:**
+
+```typescript
+import { isFullUser } from "@notionhq/client"
+
+const user = await notion.users.retrieve({ user_id: userId })
+
+if (isFullUser(user)) {
+  console.log(user.type) // "person" or "bot"
+  console.log(user.name)
+}
+```
+
+## Comment Type Guards
+
+### isFullComment
+
+Checks if a response is a full `CommentObjectResponse` (not a partial comment).
+
+```typescript
+function isFullComment(
+  response: CommentObjectResponse | PartialCommentObjectResponse
+): response is CommentObjectResponse
+```
+
+**Example:**
+
+```typescript
+import { isFullComment } from "@notionhq/client"
+
+const comments = await notion.comments.list({ block_id: blockId })
+
+comments.results.forEach(comment => {
+  if (isFullComment(comment)) {
+    console.log(comment.created_by)
+    console.log(comment.rich_text)
+  }
+})
+```
+
+## Rich Text Type Guards
+
+### isTextRichTextItemResponse
+
+Checks if a rich text item is a text type.
+
+```typescript
+function isTextRichTextItemResponse(
+  richText: RichTextItemResponse
+): richText is RichTextItemResponseCommon & TextRichTextItemResponse
+```
+
+**Example:**
+
+```typescript
+import { isTextRichTextItemResponse } from "@notionhq/client"
+
+richTextArray.forEach(item => {
+  if (isTextRichTextItemResponse(item)) {
+    console.log(item.text.content)
+    console.log(item.text.link)
+  }
+})
+```
+
+### isEquationRichTextItemResponse
+
+Checks if a rich text item is an equation type.
+
+```typescript
+function isEquationRichTextItemResponse(
+  richText: RichTextItemResponse
+): richText is RichTextItemResponseCommon & EquationRichTextItemResponse
+```
+
+**Example:**
+
+```typescript
+import { isEquationRichTextItemResponse } from "@notionhq/client"
+
+richTextArray.forEach(item => {
+  if (isEquationRichTextItemResponse(item)) {
+    console.log(item.equation.expression)
+  }
+})
+```
+
+### isMentionRichTextItemResponse
+
+Checks if a rich text item is a mention type.
+
+```typescript
+function isMentionRichTextItemResponse(
+  richText: RichTextItemResponse
+): richText is RichTextItemResponseCommon & MentionRichTextItemResponse
+```
+
+**Example:**
+
+```typescript
+import { isMentionRichTextItemResponse } from "@notionhq/client"
+
+richTextArray.forEach(item => {
+  if (isMentionRichTextItemResponse(item)) {
+    console.log(item.mention.type) // "user", "page", "database", etc.
+  }
+})
+```
+
+## Why Use Type Guards?
+
+The Notion API returns different response shapes depending on the context:
+
+- **Full objects** contain all properties and are returned by direct retrieve operations
+- **Partial objects** contain only `id` and `object` properties and are returned in some contexts where full data isn't available
+
+Type guards help you:
+1. Write type-safe code that TypeScript can verify
+2. Handle partial responses gracefully
+3. Access properties that only exist on full objects
+4. Distinguish between different rich text types

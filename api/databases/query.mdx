@@ -1,0 +1,392 @@
+---
+title: "Querying Databases"
+description: "Query database contents through data sources"
+---
+
+## Overview
+
+In the Notion SDK, databases are containers that hold one or more data sources. To query the contents of a database, you need to query its data sources using `notion.dataSources.query()`.
+
+<Note>
+  The `databases` namespace does not have a `query` method. Instead, use `notion.dataSources.query()` to retrieve pages and data from within a database.
+</Note>
+
+## Getting Data Source IDs
+
+First, retrieve the database to get its data source IDs:
+
+```javascript
+const database = await notion.databases.retrieve({
+  database_id: '897e5a76-ae52-4b48-a6d4-0b46543ebcda'
+})
+
+const dataSourceId = database.data_sources[0].id
+```
+
+## Querying a Data Source
+
+Once you have a data source ID, query it using `notion.dataSources.query()`:
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter: {
+    property: 'Status',
+    select: {
+      equals: 'In Progress'
+    }
+  },
+  sorts: [
+    {
+      property: 'Created',
+      direction: 'descending'
+    }
+  ]
+})
+
+console.log(response.results)
+```
+
+## Filtering Examples
+
+### Filter by text property
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter: {
+    property: 'Name',
+    rich_text: {
+      contains: 'project'
+    }
+  }
+})
+```
+
+### Filter by select property
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter: {
+    property: 'Status',
+    select: {
+      equals: 'Complete'
+    }
+  }
+})
+```
+
+### Filter by multi-select property
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter: {
+    property: 'Tags',
+    multi_select: {
+      contains: 'urgent'
+    }
+  }
+})
+```
+
+### Filter by date property
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter: {
+    property: 'Due Date',
+    date: {
+      on_or_after: '2024-01-01'
+    }
+  }
+})
+```
+
+### Filter by checkbox property
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter: {
+    property: 'Done',
+    checkbox: {
+      equals: true
+    }
+  }
+})
+```
+
+### Filter by number property
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter: {
+    property: 'Priority',
+    number: {
+      greater_than: 5
+    }
+  }
+})
+```
+
+### Compound filters with AND
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter: {
+    and: [
+      {
+        property: 'Status',
+        select: {
+          equals: 'In Progress'
+        }
+      },
+      {
+        property: 'Priority',
+        number: {
+          greater_than: 3
+        }
+      }
+    ]
+  }
+})
+```
+
+### Compound filters with OR
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter: {
+    or: [
+      {
+        property: 'Status',
+        select: {
+          equals: 'Urgent'
+        }
+      },
+      {
+        property: 'Due Date',
+        date: {
+          on_or_before: '2024-12-31'
+        }
+      }
+    ]
+  }
+})
+```
+
+### Filter by created time
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter: {
+    timestamp: 'created_time',
+    created_time: {
+      past_week: {}
+    }
+  }
+})
+```
+
+## Sorting Examples
+
+### Sort by property ascending
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  sorts: [
+    {
+      property: 'Name',
+      direction: 'ascending'
+    }
+  ]
+})
+```
+
+### Sort by property descending
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  sorts: [
+    {
+      property: 'Created',
+      direction: 'descending'
+    }
+  ]
+})
+```
+
+### Sort by timestamp
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  sorts: [
+    {
+      timestamp: 'last_edited_time',
+      direction: 'descending'
+    }
+  ]
+})
+```
+
+### Multiple sorts
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  sorts: [
+    {
+      property: 'Priority',
+      direction: 'descending'
+    },
+    {
+      property: 'Name',
+      direction: 'ascending'
+    }
+  ]
+})
+```
+
+## Pagination
+
+### Manual pagination
+
+```javascript
+let hasMore = true
+let startCursor = undefined
+
+while (hasMore) {
+  const response = await notion.dataSources.query({
+    data_source_id: dataSourceId,
+    start_cursor: startCursor,
+    page_size: 100
+  })
+  
+  console.log(`Retrieved ${response.results.length} pages`)
+  
+  hasMore = response.has_more
+  startCursor = response.next_cursor
+}
+```
+
+### Using pagination helpers
+
+```javascript
+const { iteratePaginatedAPI } = require('@notionhq/client')
+
+for await (const page of iteratePaginatedAPI(
+  notion.dataSources.query,
+  { data_source_id: dataSourceId }
+)) {
+  console.log(page.id)
+}
+```
+
+## Complete Example
+
+```javascript
+const { Client } = require('@notionhq/client')
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+async function queryDatabase() {
+  const database = await notion.databases.retrieve({
+    database_id: 'database-id'
+  })
+  
+  const dataSourceId = database.data_sources[0].id
+  
+  const response = await notion.dataSources.query({
+    data_source_id: dataSourceId,
+    filter: {
+      and: [
+        {
+          property: 'Status',
+          select: {
+            equals: 'In Progress'
+          }
+        },
+        {
+          property: 'Due Date',
+          date: {
+            on_or_after: new Date().toISOString()
+          }
+        }
+      ]
+    },
+    sorts: [
+      {
+        property: 'Priority',
+        direction: 'descending'
+      },
+      {
+        property: 'Due Date',
+        direction: 'ascending'
+      }
+    ],
+    page_size: 50
+  })
+  
+  console.log(`Found ${response.results.length} matching pages`)
+  
+  for (const page of response.results) {
+    console.log(`- ${page.id}`)
+  }
+}
+
+queryDatabase()
+```
+
+## Additional Options
+
+### Filter properties
+
+Limit which properties are returned in the response:
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  filter_properties: ['Name', 'Status', 'Due Date']
+})
+```
+
+### Include/exclude archived pages
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  archived: false
+})
+```
+
+### Include/exclude trashed pages
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  in_trash: false
+})
+```
+
+### Filter by result type
+
+```javascript
+const response = await notion.dataSources.query({
+  data_source_id: dataSourceId,
+  result_type: 'page'
+})
+```
+
+<Note>
+  For more details on data source querying, see the [Data Sources Query](/api/data-sources/query) reference.
+</Note>

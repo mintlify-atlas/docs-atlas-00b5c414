@@ -1,0 +1,298 @@
+---
+title: "Error Types"
+description: "Error classes thrown by the Notion SDK"
+---
+
+The Notion SDK throws four specific error types, all of which extend a base `NotionClientErrorBase` class. Each error has a unique `code` property for easy identification.
+
+## APIResponseError
+
+Thrown when the Notion API responds with an error. This is the most common error type you'll encounter.
+
+### Properties
+
+- `code: APIErrorCode` - The specific error code from the API (see [Error Codes](/api/errors/error-codes))
+- `status: number` - HTTP status code
+- `message: string` - Human-readable error message
+- `headers: Response.headers` - HTTP response headers
+- `body: string` - Raw response body
+- `additional_data?: Record<string, string | string[]>` - Additional error context from the API
+- `request_id?: string` - Notion request ID for support inquiries
+
+### Type Guard
+
+```typescript
+static isAPIResponseError(error: unknown): error is APIResponseError
+```
+
+### Example
+
+```typescript
+import { Client, APIResponseError, APIErrorCode } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+try {
+  const page = await notion.pages.retrieve({ page_id: "invalid-id" })
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    console.error(`API Error: ${error.code}`)
+    console.error(`Status: ${error.status}`)
+    console.error(`Message: ${error.message}`)
+    console.error(`Request ID: ${error.request_id}`)
+
+    // Handle specific error codes
+    switch (error.code) {
+      case APIErrorCode.ObjectNotFound:
+        console.log("Page does not exist or integration lacks access")
+        break
+      case APIErrorCode.Unauthorized:
+        console.log("Invalid or missing authentication token")
+        break
+      case APIErrorCode.RateLimited:
+        console.log("Rate limit exceeded, retry after delay")
+        break
+      default:
+        console.log("Unexpected API error")
+    }
+  }
+}
+```
+
+## RequestTimeoutError
+
+Thrown when a request to the Notion API exceeds the configured timeout (default: 60 seconds).
+
+### Properties
+
+- `code: ClientErrorCode.RequestTimeout` - Always set to `"notionhq_client_request_timeout"`
+- `message: string` - Error message (default: "Request to Notion API has timed out")
+
+### Type Guard
+
+```typescript
+static isRequestTimeoutError(error: unknown): error is RequestTimeoutError
+```
+
+### Example
+
+```typescript
+import { Client, RequestTimeoutError } from "@notionhq/client"
+
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  timeoutMs: 5000, // 5 second timeout
+})
+
+try {
+  const results = await notion.databases.query({ database_id: databaseId })
+} catch (error) {
+  if (RequestTimeoutError.isRequestTimeoutError(error)) {
+    console.error("Request timed out, try increasing timeoutMs or checking network")
+  }
+}
+```
+
+## UnknownHTTPResponseError
+
+Thrown when the API responds with an unexpected format or unknown error code. This typically indicates a response that doesn't match the expected error structure.
+
+### Properties
+
+- `code: ClientErrorCode.ResponseError` - Always set to `"notionhq_client_response_error"`
+- `status: number` - HTTP status code
+- `message: string` - Error message (default includes status code)
+- `headers: Response.headers` - HTTP response headers
+- `body: string` - Raw response body
+
+### Type Guard
+
+```typescript
+static isUnknownHTTPResponseError(error: unknown): error is UnknownHTTPResponseError
+```
+
+### Example
+
+```typescript
+import { Client, UnknownHTTPResponseError } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+try {
+  const page = await notion.pages.retrieve({ page_id: pageId })
+} catch (error) {
+  if (UnknownHTTPResponseError.isUnknownHTTPResponseError(error)) {
+    console.error(`Unexpected HTTP error: ${error.status}`)
+    console.error(`Response body: ${error.body}`)
+    // Log details for debugging
+  }
+}
+```
+
+## InvalidPathParameterError
+
+Thrown when a path parameter contains invalid characters that could alter the intended API endpoint, such as path traversal sequences (`..`).
+
+### Properties
+
+- `code: ClientErrorCode.InvalidPathParameter` - Always set to `"notionhq_client_invalid_path_parameter"`
+- `message: string` - Error message describing the invalid parameter
+
+### Type Guard
+
+```typescript
+static isInvalidPathParameterError(error: unknown): error is InvalidPathParameterError
+```
+
+### Example
+
+```typescript
+import { Client, InvalidPathParameterError } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+try {
+  // This will throw because of the ".." in the ID
+  const page = await notion.pages.retrieve({ page_id: "../malicious" })
+} catch (error) {
+  if (InvalidPathParameterError.isInvalidPathParameterError(error)) {
+    console.error("Invalid page ID format")
+    console.error(error.message)
+  }
+}
+```
+
+## General Error Handling
+
+### isNotionClientError
+
+Type guard to check if an error is any Notion SDK error.
+
+```typescript
+function isNotionClientError(error: unknown): error is NotionClientError
+```
+
+**Example:**
+
+```typescript
+import { isNotionClientError } from "@notionhq/client"
+
+try {
+  await notion.pages.retrieve({ page_id: pageId })
+} catch (error) {
+  if (isNotionClientError(error)) {
+    // TypeScript knows this is a Notion error
+    console.error(`Notion error [${error.code}]: ${error.message}`)
+  } else {
+    // Some other error type
+    console.error("Unexpected error:", error)
+  }
+}
+```
+
+### isHTTPResponseError
+
+Type guard to check if an error is an HTTP response error (has status, headers, and body).
+
+```typescript
+function isHTTPResponseError(
+  error: unknown
+): error is UnknownHTTPResponseError | APIResponseError
+```
+
+**Example:**
+
+```typescript
+import { isHTTPResponseError } from "@notionhq/client"
+
+try {
+  await notion.pages.retrieve({ page_id: pageId })
+} catch (error) {
+  if (isHTTPResponseError(error)) {
+    console.error(`HTTP ${error.status}: ${error.message}`)
+    console.error(`Body: ${error.body}`)
+  }
+}
+```
+
+## Error Handling Best Practices
+
+### 1. Handle Specific Error Codes
+
+```typescript
+import { APIResponseError, APIErrorCode } from "@notionhq/client"
+
+try {
+  const page = await notion.pages.retrieve({ page_id: pageId })
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    switch (error.code) {
+      case APIErrorCode.ObjectNotFound:
+        // Specific handling for missing objects
+        return null
+      case APIErrorCode.RateLimited:
+        // Implement retry logic
+        await sleep(1000)
+        return retry()
+      case APIErrorCode.Unauthorized:
+        // Check authentication
+        throw new Error("Invalid Notion token")
+      default:
+        // Generic error handling
+        console.error(error.message)
+    }
+  }
+  throw error
+}
+```
+
+### 2. Log Request IDs for Support
+
+```typescript
+try {
+  await notion.pages.retrieve({ page_id: pageId })
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    console.error(`Request failed (ID: ${error.request_id})`)
+    // Include request_id when contacting Notion support
+  }
+}
+```
+
+### 3. Use Type Guards for Type Safety
+
+```typescript
+import {
+  isNotionClientError,
+  RequestTimeoutError,
+  APIResponseError,
+} from "@notionhq/client"
+
+try {
+  await notion.pages.retrieve({ page_id: pageId })
+} catch (error: unknown) {
+  if (RequestTimeoutError.isRequestTimeoutError(error)) {
+    // Handle timeout
+  } else if (APIResponseError.isAPIResponseError(error)) {
+    // Handle API error
+  } else if (isNotionClientError(error)) {
+    // Handle other SDK errors
+  } else {
+    // Handle unknown errors
+  }
+}
+```
+
+### 4. Check Additional Data
+
+```typescript
+try {
+  await notion.pages.create({ parent: { database_id: dbId }, properties: {} })
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    if (error.additional_data) {
+      console.log("Additional error context:", error.additional_data)
+    }
+  }
+}
+```

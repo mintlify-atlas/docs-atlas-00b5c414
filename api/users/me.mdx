@@ -1,0 +1,53 @@
+---
+title: "Retrieve token's bot user"
+description: "Retrieves the bot User associated with the provided bearer token."
+---
+
+## Method
+
+```typescript
+client.users.me(args: GetSelfParameters): Promise<GetSelfResponse>
+```
+
+## Parameters
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. If not provided, the client-level auth is used.
+</ParamField>
+
+## Response
+
+Returns a [User object](/api/types#user-object) representing the bot user.
+
+<ResponseField name="object" type="string">
+  Always `"user"`.
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the bot user.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Always `"bot"`.
+</ResponseField>
+
+<ResponseField name="bot" type="object">
+  Details about the bot, including owner information and workspace details.
+</ResponseField>
+
+<ResponseField name="name" type="string | null">
+  The name of the bot.
+</ResponseField>
+
+<ResponseField name="avatar_url" type="string | null">
+  The avatar URL of the bot.
+</ResponseField>
+
+## Example
+
+```typescript
+const bot = await client.users.me({})
+
+console.log(bot.name)
+console.log(bot.bot)
+```

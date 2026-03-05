@@ -1,0 +1,428 @@
+---
+title: pages.create
+description: Create a new page in Notion
+---
+
+Creates a new page in a database, as a child of an existing page, or in a workspace.
+
+## Method Signature
+
+```typescript
+notion.pages.create(args: CreatePageParameters): Promise<PageObjectResponse | PartialPageObjectResponse>
+```
+
+## Parameters
+
+<ParamField path="parent" type="object" required>
+  The parent location where the page will be created. Can be a database, page, or workspace.
+  
+  <Expandable title="Parent Types">
+    <ParamField path="database_id" type="string">
+      The ID of the parent database (with or without dashes)
+    </ParamField>
+    
+    <ParamField path="page_id" type="string">
+      The ID of the parent page (with or without dashes)
+    </ParamField>
+    
+    <ParamField path="workspace" type="boolean">
+      Set to `true` to create the page in the workspace root
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="properties" type="object" required>
+  Property values for the new page. The required properties depend on the parent database schema.
+  
+  Each property value is keyed by the property name and includes a `type` field.
+  
+  <Expandable title="Property Types">
+    <ParamField path="title" type="array">
+      Array of rich text objects for title properties
+    </ParamField>
+    
+    <ParamField path="rich_text" type="array">
+      Array of rich text objects for text properties
+    </ParamField>
+    
+    <ParamField path="number" type="number">
+      Numeric value for number properties
+    </ParamField>
+    
+    <ParamField path="select" type="object">
+      Select option with `name` or `id`
+    </ParamField>
+    
+    <ParamField path="multi_select" type="array">
+      Array of select options
+    </ParamField>
+    
+    <ParamField path="date" type="object">
+      Date object with `start` and optional `end` and `time_zone`
+    </ParamField>
+    
+    <ParamField path="checkbox" type="boolean">
+      Boolean value for checkbox properties
+    </ParamField>
+    
+    <ParamField path="url" type="string">
+      URL string
+    </ParamField>
+    
+    <ParamField path="email" type="string">
+      Email address string
+    </ParamField>
+    
+    <ParamField path="phone_number" type="string">
+      Phone number string
+    </ParamField>
+    
+    <ParamField path="people" type="array">
+      Array of user objects with `id` fields
+    </ParamField>
+    
+    <ParamField path="files" type="array">
+      Array of file objects (external or uploaded)
+    </ParamField>
+    
+    <ParamField path="relation" type="array">
+      Array of relation objects with `id` fields
+    </ParamField>
+    
+    <ParamField path="status" type="object">
+      Status option with `name` or `id`
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="icon" type="object">
+  Page icon. Can be an emoji, external URL, file upload, or custom emoji.
+  
+  <Expandable title="Icon Types">
+    <ParamField path="emoji" type="string">
+      A single emoji character (e.g., "📄")
+    </ParamField>
+    
+    <ParamField path="external" type="object">
+      External file with `url` property
+    </ParamField>
+    
+    <ParamField path="file_upload" type="object">
+      File upload with `id` property (must have status `uploaded`)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="cover" type="object">
+  Page cover image.
+  
+  <Expandable title="Cover Types">
+    <ParamField path="external" type="object">
+      External file with `url` property
+    </ParamField>
+    
+    <ParamField path="file_upload" type="object">
+      File upload with `id` property (must have status `uploaded`)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="children" type="array">
+  Array of block objects to add as the page's initial content. Mutually exclusive with `content` and `markdown`.
+</ParamField>
+
+<ParamField path="content" type="array">
+  Array of block objects to add as the page's initial content. Mutually exclusive with `children` and `markdown`.
+</ParamField>
+
+<ParamField path="markdown" type="string">
+  Page content as Notion-flavored Markdown. Mutually exclusive with `content` and `children`.
+</ParamField>
+
+<ParamField path="template" type="object">
+  Template to apply to the page.
+  
+  <Expandable title="Template Types">
+    <ParamField path="type" type="string">
+      One of: `none`, `default`, `template_id`
+    </ParamField>
+    
+    <ParamField path="template_id" type="string">
+      ID of the template to use (when `type` is `template_id`)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="position" type="object">
+  Position where the page should be inserted.
+  
+  <Expandable title="Position Types">
+    <ParamField path="type" type="string">
+      One of: `after_block`, `page_start`, `page_end`
+    </ParamField>
+    
+    <ParamField path="after_block" type="object">
+      Block reference with `id` (when `type` is `after_block`)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. Overrides the client-level authentication.
+</ParamField>
+
+## Response
+
+<ResponseField name="object" type="string">
+  Always `"page"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the newly created page
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  ISO 8601 timestamp when the page was created
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the page was last edited
+</ResponseField>
+
+<ResponseField name="archived" type="boolean">
+  Whether the page is archived
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  Whether the page is in trash
+</ResponseField>
+
+<ResponseField name="is_locked" type="boolean">
+  Whether the page is locked from editing in the Notion app UI
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The URL of the Notion page
+</ResponseField>
+
+<ResponseField name="public_url" type="string | null">
+  The public URL if the page has been published to the web
+</ResponseField>
+
+<ResponseField name="parent" type="object">
+  Information about the page's parent
+</ResponseField>
+
+<ResponseField name="properties" type="object">
+  Property values of the page
+</ResponseField>
+
+<ResponseField name="icon" type="object | null">
+  Page icon
+</ResponseField>
+
+<ResponseField name="cover" type="object | null">
+  Page cover image
+</ResponseField>
+
+<ResponseField name="created_by" type="object">
+  User who created the page
+</ResponseField>
+
+<ResponseField name="last_edited_by" type="object">
+  User who last edited the page
+</ResponseField>
+
+## Examples
+
+### Create a Page in a Database
+
+```typescript
+const page = await notion.pages.create({
+  parent: {
+    database_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  },
+  properties: {
+    Name: {
+      title: [
+        {
+          text: {
+            content: "My New Page",
+          },
+        },
+      ],
+    },
+    Status: {
+      status: {
+        name: "In Progress",
+      },
+    },
+    Priority: {
+      select: {
+        name: "High",
+      },
+    },
+  },
+})
+
+console.log("Created page with ID:", page.id)
+```
+
+### Create a Page with Content
+
+```typescript
+const page = await notion.pages.create({
+  parent: {
+    database_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  },
+  properties: {
+    Name: {
+      title: [
+        {
+          text: {
+            content: "Meeting Notes",
+          },
+        },
+      ],
+    },
+  },
+  children: [
+    {
+      heading_1: {
+        rich_text: [
+          {
+            text: {
+              content: "Agenda",
+            },
+          },
+        ],
+      },
+    },
+    {
+      paragraph: {
+        rich_text: [
+          {
+            text: {
+              content: "Discuss project timeline and deliverables.",
+            },
+          },
+        ],
+      },
+    },
+  ],
+})
+```
+
+### Create a Page with Markdown
+
+```typescript
+const page = await notion.pages.create({
+  parent: {
+    page_id: "b55c9c91-384d-452b-81db-d1ef79372b75",
+  },
+  properties: {
+    title: [
+      {
+        text: {
+          content: "Documentation",
+        },
+      },
+    ],
+  },
+  markdown: `# Getting Started
+
+Welcome to our documentation!
+
+## Installation
+
+\`\`\`bash
+npm install @notionhq/client
+\`\`\`
+
+## Usage
+
+Initialize the client with your API token.
+`,
+})
+```
+
+### Create a Child Page
+
+```typescript
+const childPage = await notion.pages.create({
+  parent: {
+    page_id: "b55c9c91-384d-452b-81db-d1ef79372b75",
+  },
+  properties: {
+    title: [
+      {
+        text: {
+          content: "Subpage Title",
+        },
+      },
+    ],
+  },
+  icon: {
+    emoji: "📝",
+  },
+})
+```
+
+### Create a Page with Multiple Properties
+
+```typescript
+const page = await notion.pages.create({
+  parent: {
+    database_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  },
+  properties: {
+    Name: {
+      title: [
+        {
+          text: {
+            content: "Project Task",
+          },
+        },
+      ],
+    },
+    "Due Date": {
+      date: {
+        start: "2026-03-15",
+        end: "2026-03-20",
+      },
+    },
+    Assignee: {
+      people: [
+        {
+          id: "d40e767c-d7af-4b18-a86d-55c61f1e39a4",
+        },
+      ],
+    },
+    Tags: {
+      multi_select: [
+        { name: "urgent" },
+        { name: "feature" },
+      ],
+    },
+    Completed: {
+      checkbox: false,
+    },
+  },
+  cover: {
+    external: {
+      url: "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b",
+    },
+  },
+})
+```
+
+## Related Methods
+
+- [pages.retrieve](/api/pages/retrieve) - Retrieve an existing page
+- [pages.update](/api/pages/update) - Update page properties
+- [pages.move](/api/pages/move) - Move a page to a different location
+
+## See Also
+
+- [Notion API: Create a page](https://developers.notion.com/reference/post-page)
+- [Working with page properties](https://developers.notion.com/docs/working-with-page-content)

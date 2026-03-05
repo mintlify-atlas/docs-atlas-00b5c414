@@ -1,0 +1,174 @@
+---
+title: 'dataSources.update'
+description: 'Update a data source'
+---
+
+## Method
+
+```typescript
+client.dataSources.update(parameters: UpdateDataSourceParameters): Promise<DataSourceObjectResponse | PartialDataSourceObjectResponse>
+```
+
+Updates the properties, title, icon, or parent of a data source.
+
+## Parameters
+
+<ParamField path="data_source_id" type="string" required>
+  The ID of the data source to update (with or without dashes)
+</ParamField>
+
+<ParamField path="title" type="RichTextItemRequest[]">
+  New title of the data source as it appears in Notion. Array of rich text objects.
+</ParamField>
+
+<ParamField path="icon" type="PageIconRequest | null">
+  New icon for the data source. Set to `null` to remove the icon.
+</ParamField>
+
+<ParamField path="properties" type="Record<string, PropertyConfiguration | { name: string } | null>">
+  The property schema updates for the data source. 
+  
+  - To add or update a property, provide its configuration
+  - To rename a property, provide `{ name: "New Name" }`
+  - To remove a property, set it to `null`
+  
+  Each property can have a `name` and `description` field along with its type-specific configuration.
+</ParamField>
+
+<ParamField path="archived" type="boolean">
+  Whether to move the data source to or from the trash. Equivalent to `in_trash`.
+</ParamField>
+
+<ParamField path="in_trash" type="boolean">
+  Whether to move the data source to or from the trash. Equivalent to `archived`.
+</ParamField>
+
+<ParamField path="parent" type="object">
+  The parent of the data source, when moving it to a different database.
+  
+  <ParamField path="parent.type" type="string" default="database_id">
+    Always `database_id`
+  </ParamField>
+  
+  <ParamField path="parent.database_id" type="string" required>
+    The ID of the new parent database
+  </ParamField>
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. Overrides the client-level auth if provided.
+</ParamField>
+
+## Response
+
+Returns the updated `DataSourceObjectResponse` or `PartialDataSourceObjectResponse`.
+
+<ResponseField name="object" type="string">
+  Always `"data_source"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The unique identifier of the data source
+</ResponseField>
+
+<ResponseField name="title" type="RichTextItemResponse[]">
+  The updated title of the data source
+</ResponseField>
+
+<ResponseField name="properties" type="Record<string, DatabasePropertyConfigResponse>">
+  The updated property schema
+</ResponseField>
+
+<ResponseField name="icon" type="PageIconResponse | null">
+  The updated icon
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the data source was last edited (updated)
+</ResponseField>
+
+<ResponseField name="last_edited_by" type="PartialUserObjectResponse">
+  The user who last edited the data source
+</ResponseField>
+
+## Examples
+
+### Update title and icon
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_API_KEY })
+
+const updated = await notion.dataSources.update({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  title: [
+    {
+      type: "text",
+      text: { content: "Updated Data Source" }
+    }
+  ],
+  icon: {
+    type: "emoji",
+    emoji: "🔄"
+  }
+})
+```
+
+### Add a new property
+
+```typescript
+const updated = await notion.dataSources.update({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  properties: {
+    "Priority": {
+      select: {
+        options: [
+          { name: "High", color: "red" },
+          { name: "Medium", color: "yellow" },
+          { name: "Low", color: "green" }
+        ]
+      }
+    }
+  }
+})
+```
+
+### Rename a property
+
+```typescript
+const updated = await notion.dataSources.update({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  properties: {
+    "OldName": {
+      name: "NewName"
+    }
+  }
+})
+```
+
+### Remove a property
+
+```typescript
+const updated = await notion.dataSources.update({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  properties: {
+    "PropertyToRemove": null
+  }
+})
+```
+
+### Move to trash
+
+```typescript
+const archived = await notion.dataSources.update({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  in_trash: true
+})
+```
+
+## Related Methods
+
+- [dataSources.retrieve](/api/data-sources/retrieve) - Retrieve a data source by ID
+- [dataSources.create](/api/data-sources/create) - Create a new data source
+- [dataSources.query](/api/data-sources/query) - Query pages from a data source

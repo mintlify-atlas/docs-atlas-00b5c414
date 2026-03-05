@@ -1,0 +1,559 @@
+---
+title: File Uploads
+description: Upload files to Notion using the file upload API
+---
+
+The Notion SDK provides a complete file upload system through the `client.fileUploads` namespace. You can upload files to use as page icons, covers, or inline file blocks.
+
+## File Upload Lifecycle
+
+The file upload process follows these steps:
+
+1. **Create** - Initialize a file upload and get upload metadata
+2. **Send** - Upload the file content (single or multi-part)
+3. **Complete** - Finalize multi-part uploads
+4. **Use** - Reference the file in pages, blocks, or properties
+5. **List** - View all file uploads and their status
+
+## Upload Modes
+
+The API supports three upload modes:
+
+<CardGroup cols={3}>
+  <Card title="single_part" icon="file">
+    For files under 20MB. Upload in one request.
+  </Card>
+  <Card title="multi_part" icon="files">
+    For files over 20MB. Upload in multiple chunks.
+  </Card>
+  <Card title="external_url" icon="link">
+    Import a publicly accessible file from a URL.
+  </Card>
+</CardGroup>
+
+## Creating a File Upload
+
+Use `fileUploads.create()` to initialize an upload:
+
+### create() Method Signature
+
+```typescript
+client.fileUploads.create(
+  args: CreateFileUploadParameters
+): Promise<CreateFileUploadResponse>
+```
+
+### Parameters
+
+```typescript
+type CreateFileUploadParameters = {
+  mode?: "single_part" | "multi_part" | "external_url" // Default: "single_part"
+  filename?: string // Required for multi_part, optional otherwise
+  content_type?: string // MIME type (recommended for multi_part)
+  number_of_parts?: number // Required for multi_part mode
+  external_url?: string // Required for external_url mode
+}
+```
+
+### Single-Part Upload Example
+
+For files under 20MB:
+
+```typescript
+import { Client } from "@notionhq/client"
+import { readFileSync } from "fs"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+// Step 1: Create the file upload
+const upload = await notion.fileUploads.create({
+  mode: "single_part",
+  filename: "document.pdf",
+  content_type: "application/pdf",
+})
+
+console.log("Upload ID:", upload.id)
+console.log("Status:", upload.status) // "pending"
+
+// Step 2: Send the file
+const fileBuffer = readFileSync("./document.pdf")
+
+const sentUpload = await notion.fileUploads.send({
+  file_upload_id: upload.id,
+  file: {
+    filename: "document.pdf",
+    data: fileBuffer,
+  },
+})
+
+console.log("Status:", sentUpload.status) // "uploaded"
+```
+
+### Multi-Part Upload Example
+
+For files over 20MB, upload in chunks:
+
+```typescript
+import { readFileSync } from "fs"
+
+const largeFile = readFileSync("./large-video.mp4")
+const chunkSize = 5 * 1024 * 1024 // 5MB chunks
+const numberOfParts = Math.ceil(largeFile.length / chunkSize)
+
+// Step 1: Create multi-part upload
+const upload = await notion.fileUploads.create({
+  mode: "multi_part",
+  filename: "large-video.mp4",
+  content_type: "video/mp4",
+  number_of_parts: numberOfParts,
+})
+
+// Step 2: Send each part
+for (let i = 0; i < numberOfParts; i++) {
+  const start = i * chunkSize
+  const end = Math.min(start + chunkSize, largeFile.length)
+  const chunk = largeFile.slice(start, end)
+
+  await notion.fileUploads.send({
+    file_upload_id: upload.id,
+    file: {
+      data: chunk,
+    },
+    part_number: String(i + 1),
+  })
+
+  console.log(`Uploaded part ${i + 1}/${numberOfParts}`)
+}
+
+// Step 3: Complete the upload
+const completed = await notion.fileUploads.complete({
+  file_upload_id: upload.id,
+})
+
+console.log("Status:", completed.status) // "uploaded"
+```
+
+### External URL Import
+
+Import a publicly accessible file:
+
+```typescript
+const upload = await notion.fileUploads.create({
+  mode: "external_url",
+  external_url: "https://example.com/public/image.jpg",
+  filename: "imported-image.jpg", // Optional override
+})
+
+console.log("Status:", upload.status) // "uploaded" once imported
+```
+
+<Note>
+The file must be publicly accessible without authentication. Notion will download and import the file asynchronously.
+</Note>
+
+## Sending File Data
+
+Use `fileUploads.send()` to upload the actual file content:
+
+### send() Method Signature
+
+```typescript
+client.fileUploads.send(
+  args: SendFileUploadParameters
+): Promise<SendFileUploadResponse>
+```
+
+### Parameters
+
+```typescript
+type SendFileUploadParameters = {
+  file_upload_id: string // From create() response
+  file: {
+    filename?: string // Optional filename
+    data: string | Blob | Buffer // File content
+  }
+  part_number?: string // Required for multi-part uploads
+}
+```
+
+### Browser Example with File Input
+
+```typescript
+const fileInput = document.querySelector('input[type="file"]')
+const file = fileInput.files[0]
+
+const upload = await notion.fileUploads.create({
+  mode: "single_part",
+  filename: file.name,
+  content_type: file.type,
+})
+
+const sentUpload = await notion.fileUploads.send({
+  file_upload_id: upload.id,
+  file: {
+    filename: file.name,
+    data: file, // Browser File object
+  },
+})
+```
+
+## Completing Multi-Part Uploads
+
+After sending all parts, finalize the upload:
+
+### complete() Method Signature
+
+```typescript
+client.fileUploads.complete(
+  args: CompleteFileUploadParameters
+): Promise<CompleteFileUploadResponse>
+```
+
+### Example
+
+```typescript
+const completed = await notion.fileUploads.complete({
+  file_upload_id: upload.id,
+})
+
+if (completed.status === "uploaded") {
+  console.log("Upload complete!")
+} else if (completed.status === "failed") {
+  console.error("Upload failed")
+}
+```
+
+<Warning>
+You must send exactly the number of parts specified in `number_of_parts` before calling `complete()`.
+</Warning>
+
+## Using Uploaded Files
+
+Once uploaded, reference the file by its ID:
+
+### As Page Icon
+
+```typescript
+await notion.pages.create({
+  parent: { database_id: "database-id" },
+  icon: {
+    type: "file_upload",
+    file_upload: {
+      id: upload.id,
+    },
+  },
+  properties: {
+    Name: {
+      title: [{ text: { content: "Page with Custom Icon" } }],
+    },
+  },
+})
+```
+
+### As Page Cover
+
+```typescript
+await notion.pages.create({
+  parent: { database_id: "database-id" },
+  cover: {
+    type: "file_upload",
+    file_upload: {
+      id: upload.id,
+    },
+  },
+  properties: {
+    Name: {
+      title: [{ text: { content: "Page with Cover Image" } }],
+    },
+  },
+})
+```
+
+### As Inline File Block
+
+```typescript
+await notion.blocks.children.append({
+  block_id: pageId,
+  children: [
+    {
+      object: "block",
+      type: "file",
+      file: {
+        type: "file_upload",
+        file_upload: {
+          id: upload.id,
+        },
+        name: "Attached Document",
+      },
+    },
+  ],
+})
+```
+
+## Retrieving File Uploads
+
+Get details about a specific file upload:
+
+### retrieve() Method Signature
+
+```typescript
+client.fileUploads.retrieve(
+  args: GetFileUploadParameters
+): Promise<GetFileUploadResponse>
+```
+
+### Example
+
+```typescript
+const upload = await notion.fileUploads.retrieve({
+  file_upload_id: "upload-id",
+})
+
+console.log("Filename:", upload.filename)
+console.log("Status:", upload.status)
+console.log("Content type:", upload.content_type)
+console.log("Size:", upload.content_length, "bytes")
+```
+
+## Listing File Uploads
+
+Retrieve all file uploads with optional filtering:
+
+### list() Method Signature
+
+```typescript
+client.fileUploads.list(
+  args?: ListFileUploadsParameters
+): Promise<ListFileUploadsResponse>
+```
+
+### Parameters
+
+```typescript
+type ListFileUploadsParameters = {
+  status?: "pending" | "uploaded" | "expired" | "failed"
+  start_cursor?: string // For pagination
+  page_size?: number // Max: 100
+}
+```
+
+### Example
+
+```typescript
+// Get all uploaded files
+const uploads = await notion.fileUploads.list({
+  status: "uploaded",
+  page_size: 50,
+})
+
+for (const upload of uploads.results) {
+  console.log(upload.filename, upload.created_time)
+}
+
+// Paginate through all results
+if (uploads.has_more) {
+  const nextPage = await notion.fileUploads.list({
+    start_cursor: uploads.next_cursor!,
+  })
+}
+```
+
+## File Upload Response
+
+All file upload methods return a `FileUploadObjectResponse`:
+
+```typescript
+type FileUploadObjectResponse = {
+  object: "file_upload"
+  id: string
+  created_time: string
+  created_by: {
+    id: string
+    type: "person" | "bot" | "agent"
+  }
+  last_edited_time: string
+  archived: boolean
+  expiry_time: string | null // When the upload will expire
+  status: "pending" | "uploaded" | "expired" | "failed"
+  filename: string | null
+  content_type: string | null
+  content_length: number | null // Size in bytes
+  upload_url?: string // Temporary upload URL
+  complete_url?: string // URL to complete multi-part upload
+  number_of_parts?: {
+    total: number
+    sent: number
+  }
+  file_import_result?: {
+    imported_time: string
+    type: "success" | "error"
+    success?: {}
+    error?: {
+      type: "validation_error" | "internal_system_error" | "download_error" | "upload_error"
+      code: string
+      message: string
+      parameter: string | null
+      status_code: number | null
+    }
+  }
+}
+```
+
+## Status Values
+
+<ResponseField name="pending">
+  Upload created but file not yet sent
+</ResponseField>
+
+<ResponseField name="uploaded">
+  File successfully uploaded and ready to use
+</ResponseField>
+
+<ResponseField name="expired">
+  Upload expired before completion (typically 24 hours)
+</ResponseField>
+
+<ResponseField name="failed">
+  Upload failed due to an error
+</ResponseField>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Choose the right upload mode">
+    - Use `single_part` for files under 20MB
+    - Use `multi_part` for files over 20MB
+    - Use `external_url` for publicly hosted files
+  </Accordion>
+
+  <Accordion title="Handle upload errors">
+    ```typescript
+    try {
+      const upload = await notion.fileUploads.send({
+        file_upload_id: uploadId,
+        file: { data: fileBuffer },
+      })
+    } catch (error) {
+      if (error.code === "validation_error") {
+        console.error("Invalid file format or size")
+      } else if (error.code === "object_not_found") {
+        console.error("Upload ID not found or expired")
+      }
+      throw error
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Monitor upload progress for large files">
+    For multi-part uploads, track progress using the `number_of_parts` field:
+
+    ```typescript
+    const status = await notion.fileUploads.retrieve({
+      file_upload_id: uploadId,
+    })
+
+    if (status.number_of_parts) {
+      const progress = (
+        status.number_of_parts.sent / status.number_of_parts.total
+      ) * 100
+      console.log(`Upload progress: ${progress}%`)
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Clean up failed uploads">
+    File uploads expire after 24 hours. Regularly check for expired or failed uploads and handle them appropriately.
+
+    ```typescript
+    const failed = await notion.fileUploads.list({
+      status: "failed",
+    })
+
+    for (const upload of failed.results) {
+      console.log(`Failed upload: ${upload.filename}`, upload.file_import_result)
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Validate file types and sizes">
+    Before uploading, validate that the file meets Notion's requirements:
+
+    - Maximum file size varies by plan
+    - Supported file types depend on usage (images, videos, documents)
+    - Check `content_type` matches file extension
+  </Accordion>
+</AccordionGroup>
+
+## Complete Upload Example
+
+Here's a complete example with error handling:
+
+```typescript
+import { Client, APIResponseError } from "@notionhq/client"
+import { readFileSync, statSync } from "fs"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+async function uploadFile(filePath: string, databaseId: string) {
+  try {
+    const stats = statSync(filePath)
+    const fileBuffer = readFileSync(filePath)
+    const filename = filePath.split("/").pop()!
+
+    // Choose upload mode based on size
+    const mode = stats.size > 20 * 1024 * 1024 ? "multi_part" : "single_part"
+
+    console.log(`Uploading ${filename} (${stats.size} bytes) in ${mode} mode`)
+
+    // Create upload
+    const upload = await notion.fileUploads.create({
+      mode,
+      filename,
+      content_type: "application/pdf",
+      ...(mode === "multi_part" && { number_of_parts: 1 }),
+    })
+
+    // Send file
+    const sentUpload = await notion.fileUploads.send({
+      file_upload_id: upload.id,
+      file: {
+        filename,
+        data: fileBuffer,
+      },
+    })
+
+    // Complete if multi-part
+    if (mode === "multi_part") {
+      await notion.fileUploads.complete({
+        file_upload_id: upload.id,
+      })
+    }
+
+    // Use the file in a page
+    const page = await notion.pages.create({
+      parent: { database_id: databaseId },
+      icon: {
+        type: "file_upload",
+        file_upload: { id: upload.id },
+      },
+      properties: {
+        Name: {
+          title: [{ text: { content: filename } }],
+        },
+      },
+    })
+
+    console.log(`Created page: ${page.id}`)
+    return page
+  } catch (error) {
+    if (APIResponseError.isAPIResponseError(error)) {
+      console.error("Upload failed:", error.code, error.message)
+    } else {
+      console.error("Unexpected error:", error)
+    }
+    throw error
+  }
+}
+
+await uploadFile("./document.pdf", "your-database-id")
+```

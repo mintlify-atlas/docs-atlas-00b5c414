@@ -1,0 +1,315 @@
+---
+title: pages.properties.retrieve
+description: Retrieve a specific page property item
+---
+
+Retrieves a specific property item from a page. This is useful for accessing long property values (like long text or large relation lists) that may be paginated.
+
+## Method Signature
+
+```typescript
+notion.pages.properties.retrieve(args: GetPagePropertyParameters): Promise<PropertyItemObjectResponse | PropertyItemListResponse>
+```
+
+## Parameters
+
+<ParamField path="page_id" type="string" required>
+  The ID of the page containing the property (with or without dashes).
+</ParamField>
+
+<ParamField path="property_id" type="string" required>
+  The ID or name of the property to retrieve. You can use either:
+  - The property ID (e.g., `"title"`, `"%3E%5DWj"`)
+  - The property name (e.g., `"Name"`, `"Status"`)
+</ParamField>
+
+<ParamField path="start_cursor" type="string">
+  Used for pagination. If the property has more items than fit in a single response, use this cursor to fetch the next page of results.
+</ParamField>
+
+<ParamField path="page_size" type="number">
+  The number of items to return per page. Maximum is 100 (default: 100).
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. Overrides the client-level authentication.
+</ParamField>
+
+## Response
+
+### PropertyItemObjectResponse
+
+For simple properties (number, select, checkbox, etc.), returns a single property item:
+
+<ResponseField name="object" type="string">
+  Always `"property_item"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the property
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  The type of the property (e.g., `"number"`, `"select"`, `"date"`)
+</ResponseField>
+
+<ResponseField name="[type]" type="any">
+  The property value, keyed by the property type. For example, if `type` is `"number"`, the value is in the `number` field.
+</ResponseField>
+
+### PropertyItemListResponse
+
+For paginated properties (title, rich_text, people, relation, rollup), returns a list response:
+
+<ResponseField name="type" type="string">
+  Always `"property_item"`
+</ResponseField>
+
+<ResponseField name="property_item" type="object">
+  Contains the property type, ID, and pagination info
+  
+  <Expandable title="Fields">
+    <ResponseField name="type" type="string">
+      The property type (e.g., `"title"`, `"rich_text"`)
+    </ResponseField>
+    
+    <ResponseField name="id" type="string">
+      The property ID
+    </ResponseField>
+    
+    <ResponseField name="next_url" type="string | null">
+      URL to fetch the next page of results, or `null` if no more pages
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  Array of property items for this page
+</ResponseField>
+
+<ResponseField name="next_cursor" type="string | null">
+  Cursor to use for fetching the next page, or `null` if no more pages
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more results available
+</ResponseField>
+
+## Examples
+
+### Retrieve a Simple Property
+
+```typescript
+// Retrieve a select property
+const property = await notion.pages.properties.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  property_id: "Status",
+})
+
+if (property.type === "select") {
+  console.log("Status:", property.select?.name)
+}
+```
+
+### Retrieve a Title Property
+
+```typescript
+const property = await notion.pages.properties.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  property_id: "title",
+})
+
+if (property.object === "list") {
+  // Title properties are paginated
+  console.log("Title items:", property.results.length)
+  console.log("Has more:", property.has_more)
+}
+```
+
+### Retrieve Different Property Types
+
+```typescript
+// Number property
+const numberProp = await notion.pages.properties.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  property_id: "Score",
+})
+if (numberProp.type === "number") {
+  console.log("Score:", numberProp.number)
+}
+
+// Date property
+const dateProp = await notion.pages.properties.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  property_id: "Due Date",
+})
+if (dateProp.type === "date") {
+  console.log("Due date:", dateProp.date?.start)
+}
+
+// Checkbox property
+const checkboxProp = await notion.pages.properties.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  property_id: "Completed",
+})
+if (checkboxProp.type === "checkbox") {
+  console.log("Completed:", checkboxProp.checkbox)
+}
+```
+
+### Paginate Through Property Items
+
+```typescript
+let cursor: string | undefined = undefined
+const allItems = []
+
+do {
+  const response = await notion.pages.properties.retrieve({
+    page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+    property_id: "Relation",
+    start_cursor: cursor,
+    page_size: 50,
+  })
+  
+  if (response.object === "list") {
+    allItems.push(...response.results)
+    cursor = response.next_cursor || undefined
+  } else {
+    break
+  }
+} while (cursor)
+
+console.log("Total items:", allItems.length)
+```
+
+### Retrieve Rich Text Property
+
+```typescript
+const property = await notion.pages.properties.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  property_id: "Description",
+})
+
+if (property.object === "list" && property.results.length > 0) {
+  const richTextItem = property.results[0]
+  if (richTextItem.type === "rich_text") {
+    console.log("Description:", richTextItem.rich_text.plain_text)
+  }
+}
+```
+
+### Retrieve People Property
+
+```typescript
+const property = await notion.pages.properties.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  property_id: "Assignees",
+})
+
+if (property.object === "list") {
+  for (const item of property.results) {
+    if (item.type === "people" && item.people) {
+      console.log("Person ID:", item.people.id)
+    }
+  }
+}
+```
+
+### Retrieve Rollup Property
+
+```typescript
+const property = await notion.pages.properties.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  property_id: "Total",
+})
+
+if (property.type === "rollup") {
+  if (property.rollup.type === "number") {
+    console.log("Total:", property.rollup.number)
+  } else if (property.rollup.type === "array") {
+    console.log("Items:", property.rollup.array.length)
+  }
+}
+```
+
+### Helper Function for Pagination
+
+```typescript
+async function getAllPropertyItems(
+  pageId: string,
+  propertyId: string
+): Promise<PropertyItemObjectResponse[]> {
+  const items: PropertyItemObjectResponse[] = []
+  let cursor: string | undefined = undefined
+  
+  do {
+    const response = await notion.pages.properties.retrieve({
+      page_id: pageId,
+      property_id: propertyId,
+      start_cursor: cursor,
+    })
+    
+    if (response.object === "list") {
+      items.push(...response.results)
+      cursor = response.next_cursor || undefined
+    } else {
+      // Single item response
+      items.push(response)
+      break
+    }
+  } while (cursor)
+  
+  return items
+}
+
+// Usage
+const items = await getAllPropertyItems(
+  "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  "Comments"
+)
+console.log("Retrieved", items.length, "items")
+```
+
+## Property Types
+
+The following property types are supported:
+
+- **Simple properties** (single item response):
+  - `number`, `url`, `select`, `multi_select`, `status`, `date`, `email`, `phone_number`
+  - `checkbox`, `files`, `created_by`, `created_time`, `last_edited_by`, `last_edited_time`
+  - `formula`, `button`, `unique_id`, `verification`, `place`
+
+- **Paginated properties** (list response):
+  - `title`, `rich_text`, `people`, `relation`, `rollup`
+
+## Important Notes
+
+<Note>
+For properties with long values (like long text or many relations), the response may be paginated. Check for `has_more` and use `next_cursor` to fetch additional pages.
+</Note>
+
+<Tip>
+You can use either the property ID or property name for the `property_id` parameter. Property IDs are more stable if you rename properties frequently.
+</Tip>
+
+<Warning>
+Some computed properties (like `rollup` and `formula`) may take time to calculate. The SDK will return the current value, which may be outdated if the source data changed recently.
+</Warning>
+
+## Use Cases
+
+- **Access long text**: Retrieve full content of rich text properties that exceed the normal page limit
+- **List relations**: Get all related pages for a relation property
+- **Fetch user lists**: Retrieve all people assigned to a property
+- **Property-specific queries**: Get a single property without fetching the entire page
+
+## Related Methods
+
+- [pages.retrieve](/api/pages/retrieve) - Retrieve a full page with all properties
+- [pages.update](/api/pages/update) - Update page properties
+- [Pagination helpers](/guides/pagination) - Utilities for paginating API responses
+
+## See Also
+
+- [Notion API: Retrieve a page property item](https://developers.notion.com/reference/retrieve-a-page-property)
+- [Property value objects](https://developers.notion.com/reference/property-value-object)

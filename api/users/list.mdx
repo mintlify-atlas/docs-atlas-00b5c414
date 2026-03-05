@@ -1,0 +1,68 @@
+---
+title: "List all users"
+description: "Returns a paginated list of User objects for the workspace."
+---
+
+## Method
+
+```typescript
+client.users.list(args: ListUsersParameters): Promise<ListUsersResponse>
+```
+
+## Parameters
+
+<ParamField path="start_cursor" type="string">
+  If supplied, this endpoint will return a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results.
+</ParamField>
+
+<ParamField path="page_size" type="number">
+  The number of items from the full list desired in the response. Maximum: 100.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. If not provided, the client-level auth is used.
+</ParamField>
+
+## Response
+
+<ResponseField name="object" type="string">
+  Always `"list"`.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Always `"user"`.
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  An array of [User objects](/api/types#user-object).
+</ResponseField>
+
+<ResponseField name="next_cursor" type="string | null">
+  A cursor to use in the next request to get the next page of results. If `null`, there are no more results.
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more results to fetch.
+</ResponseField>
+
+## Example
+
+```typescript
+const response = await client.users.list({
+  page_size: 10,
+})
+
+console.log(response.results)
+```
+
+## Pagination
+
+Use the [pagination helpers](/guides/pagination) for easy iteration:
+
+```typescript
+import { iteratePaginatedAPI } from "@notionhq/client"
+
+for await (const user of iteratePaginatedAPI(client.users.list, {})) {
+  console.log(user.name)
+}
+```

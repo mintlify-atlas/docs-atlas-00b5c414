@@ -1,0 +1,238 @@
+---
+title: "databases.update"
+description: "Update an existing database's properties"
+---
+
+## Overview
+
+Updates the properties of an existing database. You can modify the title, description, icon, cover, parent, inline status, trash status, and lock status.
+
+```javascript
+const database = await notion.databases.update({
+  database_id: '897e5a76-ae52-4b48-a6d4-0b46543ebcda',
+  title: [
+    {
+      type: 'text',
+      text: { content: 'Updated Database Title' }
+    }
+  ],
+  description: [
+    {
+      type: 'text',
+      text: { content: 'New description' }
+    }
+  ]
+})
+```
+
+## Parameters
+
+<ParamField path="database_id" type="string" required>
+  The ID of the database to update.
+</ParamField>
+
+<ParamField path="title" type="array">
+  The updated title of the database as an array of rich text objects. If not provided, the title will not be updated.
+</ParamField>
+
+<ParamField path="description" type="array">
+  The updated description of the database as an array of rich text objects. If not provided, the description will not be updated.
+</ParamField>
+
+<ParamField path="is_inline" type="boolean">
+  Whether the database should be displayed inline in the parent page. If not provided, the inline status will not be updated.
+</ParamField>
+
+<ParamField path="icon" type="object">
+  The updated icon for the database. Can be an emoji, external URL, or file upload. If not provided, the icon will not be updated.
+</ParamField>
+
+<ParamField path="cover" type="object">
+  The updated cover image for the database. Can be an external URL or file upload. If not provided, the cover will not be updated.
+</ParamField>
+
+<ParamField path="in_trash" type="boolean">
+  Whether the database should be moved to or from the trash. If not provided, the trash status will not be updated.
+</ParamField>
+
+<ParamField path="is_locked" type="boolean">
+  Whether the database should be locked from editing in the Notion app UI. If not provided, the locked state will not be updated.
+</ParamField>
+
+<ParamField path="parent" type="object">
+  The parent page or workspace to move the database to. If not provided, the database will not be moved.
+  
+  <Expandable title="properties">
+    <ParamField path="type" type="string" required>
+      The type of parent. Either `page_id` or `workspace`.
+    </ParamField>
+    
+    <ParamField path="page_id" type="string">
+      The ID of the parent page. Required when `type` is `page_id`.
+    </ParamField>
+    
+    <ParamField path="workspace" type="boolean">
+      Must be `true` when `type` is `workspace`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Optional authentication token to override the client's default token for this request.
+</ParamField>
+
+## Response
+
+Returns a `DatabaseObjectResponse` or `PartialDatabaseObjectResponse` with the updated properties.
+
+<ResponseField name="object" type="string">
+  Always `database`.
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the database.
+</ResponseField>
+
+<ResponseField name="title" type="array">
+  The updated title of the database.
+</ResponseField>
+
+<ResponseField name="description" type="array">
+  The updated description of the database.
+</ResponseField>
+
+<ResponseField name="is_inline" type="boolean">
+  The updated inline status.
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  The updated trash status.
+</ResponseField>
+
+<ResponseField name="is_locked" type="boolean">
+  The updated locked status.
+</ResponseField>
+
+<ResponseField name="parent" type="object">
+  The updated parent of the database.
+</ResponseField>
+
+<ResponseField name="icon" type="object">
+  The updated icon.
+</ResponseField>
+
+<ResponseField name="cover" type="object">
+  The updated cover image.
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the database was last edited (updated).
+</ResponseField>
+
+## Examples
+
+### Update database title and description
+
+```javascript
+const database = await notion.databases.update({
+  database_id: '897e5a76-ae52-4b48-a6d4-0b46543ebcda',
+  title: [
+    {
+      type: 'text',
+      text: { content: 'Project Tasks - 2024' }
+    }
+  ],
+  description: [
+    {
+      type: 'text',
+      text: { content: 'All tasks for the current year' }
+    }
+  ]
+})
+
+console.log('Updated:', database.title[0].plain_text)
+```
+
+### Update database icon and cover
+
+```javascript
+const database = await notion.databases.update({
+  database_id: 'database-id',
+  icon: {
+    type: 'emoji',
+    emoji: '📊'
+  },
+  cover: {
+    type: 'external',
+    external: {
+      url: 'https://images.unsplash.com/photo-1557682250-33bd709cbe85'
+    }
+  }
+})
+```
+
+### Move database to trash
+
+```javascript
+const database = await notion.databases.update({
+  database_id: 'database-id',
+  in_trash: true
+})
+
+console.log('Database moved to trash')
+```
+
+### Restore database from trash
+
+```javascript
+const database = await notion.databases.update({
+  database_id: 'database-id',
+  in_trash: false
+})
+
+console.log('Database restored from trash')
+```
+
+### Lock database
+
+```javascript
+const database = await notion.databases.update({
+  database_id: 'database-id',
+  is_locked: true
+})
+
+console.log('Database is now locked')
+```
+
+### Move database to different parent
+
+```javascript
+const database = await notion.databases.update({
+  database_id: 'database-id',
+  parent: {
+    type: 'page_id',
+    page_id: 'new-parent-page-id'
+  }
+})
+
+console.log('Database moved to new parent')
+```
+
+### Toggle inline status
+
+```javascript
+const current = await notion.databases.retrieve({
+  database_id: 'database-id'
+})
+
+const updated = await notion.databases.update({
+  database_id: 'database-id',
+  is_inline: !current.is_inline
+})
+
+console.log(`Inline status changed to: ${updated.is_inline}`)
+```
+
+<Note>
+  All update parameters are optional. Only the properties you specify will be updated.
+</Note>

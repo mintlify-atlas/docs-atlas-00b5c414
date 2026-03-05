@@ -1,0 +1,419 @@
+---
+title: pages.update
+description: Update an existing page's properties and metadata
+---
+
+Updates the properties and metadata of an existing page. You can update property values, change the icon and cover, archive the page, or apply a template.
+
+## Method Signature
+
+```typescript
+notion.pages.update(args: UpdatePageParameters): Promise<PageObjectResponse | PartialPageObjectResponse>
+```
+
+## Parameters
+
+<ParamField path="page_id" type="string" required>
+  The ID of the page to update (with or without dashes).
+</ParamField>
+
+<ParamField path="properties" type="object">
+  Property values to update. Only include properties you want to change.
+  
+  Each property value is keyed by the property name or ID and includes a `type` field.
+  
+  <Expandable title="Property Types">
+    <ParamField path="title" type="array">
+      Array of rich text objects for title properties
+    </ParamField>
+    
+    <ParamField path="rich_text" type="array">
+      Array of rich text objects for text properties
+    </ParamField>
+    
+    <ParamField path="number" type="number | null">
+      Numeric value for number properties (set to `null` to clear)
+    </ParamField>
+    
+    <ParamField path="select" type="object | null">
+      Select option with `name` or `id` (set to `null` to clear)
+    </ParamField>
+    
+    <ParamField path="multi_select" type="array">
+      Array of select options (empty array to clear)
+    </ParamField>
+    
+    <ParamField path="date" type="object | null">
+      Date object with `start` and optional `end` and `time_zone` (set to `null` to clear)
+    </ParamField>
+    
+    <ParamField path="checkbox" type="boolean">
+      Boolean value for checkbox properties
+    </ParamField>
+    
+    <ParamField path="url" type="string | null">
+      URL string (set to `null` to clear)
+    </ParamField>
+    
+    <ParamField path="email" type="string | null">
+      Email address string (set to `null` to clear)
+    </ParamField>
+    
+    <ParamField path="phone_number" type="string | null">
+      Phone number string (set to `null` to clear)
+    </ParamField>
+    
+    <ParamField path="people" type="array">
+      Array of user objects with `id` fields (empty array to clear)
+    </ParamField>
+    
+    <ParamField path="files" type="array">
+      Array of file objects (empty array to clear)
+    </ParamField>
+    
+    <ParamField path="relation" type="array">
+      Array of relation objects with `id` fields (empty array to clear)
+    </ParamField>
+    
+    <ParamField path="status" type="object | null">
+      Status option with `name` or `id` (set to `null` to clear)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="icon" type="object | null">
+  Update the page icon. Set to `null` to remove the icon.
+  
+  <Expandable title="Icon Types">
+    <ParamField path="emoji" type="string">
+      A single emoji character
+    </ParamField>
+    
+    <ParamField path="external" type="object">
+      External file with `url` property
+    </ParamField>
+    
+    <ParamField path="file_upload" type="object">
+      File upload with `id` property
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="cover" type="object | null">
+  Update the page cover. Set to `null` to remove the cover.
+  
+  <Expandable title="Cover Types">
+    <ParamField path="external" type="object">
+      External file with `url` property
+    </ParamField>
+    
+    <ParamField path="file_upload" type="object">
+      File upload with `id` property
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="is_locked" type="boolean">
+  Whether the page should be locked from editing in the Notion app UI.
+</ParamField>
+
+<ParamField path="template" type="object">
+  Apply a template to the page.
+  
+  <Expandable title="Template Types">
+    <ParamField path="type" type="string">
+      One of: `default`, `template_id`
+    </ParamField>
+    
+    <ParamField path="template_id" type="string">
+      ID of the template to use (when `type` is `template_id`)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="erase_content" type="boolean">
+  Whether to erase all existing content from the page. When used with a template, the template content replaces the existing content. When used without a template, simply clears the page content.
+</ParamField>
+
+<ParamField path="archived" type="boolean">
+  Whether to archive or unarchive the page.
+</ParamField>
+
+<ParamField path="in_trash" type="boolean">
+  Whether to move the page to trash or restore it from trash.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. Overrides the client-level authentication.
+</ParamField>
+
+## Response
+
+<ResponseField name="object" type="string">
+  Always `"page"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the updated page
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  ISO 8601 timestamp when the page was created
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the page was last edited (updated after this operation)
+</ResponseField>
+
+<ResponseField name="archived" type="boolean">
+  Whether the page is archived
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  Whether the page is in trash
+</ResponseField>
+
+<ResponseField name="is_locked" type="boolean">
+  Whether the page is locked from editing
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The URL of the Notion page
+</ResponseField>
+
+<ResponseField name="public_url" type="string | null">
+  The public URL if published to the web
+</ResponseField>
+
+<ResponseField name="parent" type="object">
+  Information about the page's parent
+</ResponseField>
+
+<ResponseField name="properties" type="object">
+  Updated property values of the page
+</ResponseField>
+
+<ResponseField name="icon" type="object | null">
+  Page icon
+</ResponseField>
+
+<ResponseField name="cover" type="object | null">
+  Page cover image
+</ResponseField>
+
+<ResponseField name="created_by" type="object">
+  User who created the page
+</ResponseField>
+
+<ResponseField name="last_edited_by" type="object">
+  User who last edited the page
+</ResponseField>
+
+## Examples
+
+### Update a Single Property
+
+```typescript
+const page = await notion.pages.update({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  properties: {
+    Status: {
+      status: {
+        name: "Done",
+      },
+    },
+  },
+})
+
+console.log("Updated status to Done")
+```
+
+### Update Multiple Properties
+
+```typescript
+const page = await notion.pages.update({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  properties: {
+    Status: {
+      status: {
+        name: "In Progress",
+      },
+    },
+    Priority: {
+      select: {
+        name: "High",
+      },
+    },
+    "Due Date": {
+      date: {
+        start: "2026-03-20",
+      },
+    },
+    Completed: {
+      checkbox: false,
+    },
+  },
+})
+```
+
+### Clear a Property Value
+
+```typescript
+// Clear a select property
+const page = await notion.pages.update({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  properties: {
+    Status: {
+      status: null,
+    },
+    "Due Date": {
+      date: null,
+    },
+    Tags: {
+      multi_select: [],
+    },
+  },
+})
+```
+
+### Update Page Icon and Cover
+
+```typescript
+const page = await notion.pages.update({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  icon: {
+    emoji: "🎉",
+  },
+  cover: {
+    external: {
+      url: "https://images.unsplash.com/photo-1551788964-14609c6c3046",
+    },
+  },
+})
+```
+
+### Archive a Page
+
+```typescript
+const page = await notion.pages.update({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  archived: true,
+})
+
+console.log("Page archived")
+```
+
+### Move to Trash
+
+```typescript
+const page = await notion.pages.update({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  in_trash: true,
+})
+
+console.log("Page moved to trash")
+```
+
+### Restore from Trash
+
+```typescript
+const page = await notion.pages.update({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  in_trash: false,
+})
+
+console.log("Page restored from trash")
+```
+
+### Lock a Page
+
+```typescript
+const page = await notion.pages.update({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  is_locked: true,
+})
+
+console.log("Page is now locked")
+```
+
+### Update with External URL Icon
+
+```typescript
+const page = await notion.pages.update({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  icon: {
+    external: {
+      url: "https://example.com/icon.png",
+    },
+  },
+})
+```
+
+### Remove Icon and Cover
+
+```typescript
+const page = await notion.pages.update({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  icon: null,
+  cover: null,
+})
+
+console.log("Removed icon and cover")
+```
+
+### Batch Update with Error Handling
+
+```typescript
+import { APIResponseError, APIErrorCode } from "@notionhq/client"
+
+const pageIds = [
+  "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  "b55c9c91-384d-452b-81db-d1ef79372b75",
+  "c66d0c02-495e-563c-92ec-e80f8496c186",
+]
+
+for (const pageId of pageIds) {
+  try {
+    await notion.pages.update({
+      page_id: pageId,
+      properties: {
+        Status: {
+          status: {
+            name: "Completed",
+          },
+        },
+      },
+    })
+    console.log(`Updated page ${pageId}`)
+  } catch (error) {
+    if (APIResponseError.isAPIResponseError(error)) {
+      console.error(`Failed to update ${pageId}: ${error.message}`)
+    }
+  }
+}
+```
+
+## Important Notes
+
+<Note>
+Only properties that are explicitly included in the `properties` object will be updated. Other properties remain unchanged.
+</Note>
+
+<Warning>
+Setting `erase_content` to `true` will permanently delete all blocks in the page. This action cannot be undone.
+</Warning>
+
+<Tip>
+To rename a page, update the title property. The property name depends on your database schema but is typically `"Name"` or `"Title"`.
+</Tip>
+
+## Related Methods
+
+- [pages.retrieve](/api/pages/retrieve) - Retrieve an existing page
+- [pages.create](/api/pages/create) - Create a new page
+- [pages.move](/api/pages/move) - Move a page to a different location
+
+## See Also
+
+- [Notion API: Update page properties](https://developers.notion.com/reference/patch-page)
+- [Working with page properties](https://developers.notion.com/docs/working-with-page-content)

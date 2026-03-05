@@ -1,0 +1,211 @@
+---
+title: "OAuth"
+description: "Methods for managing OAuth 2.0 tokens for Notion integrations."
+---
+
+## Token
+
+Exchange an authorization code for an access token and refresh token.
+
+### Method
+
+```typescript
+client.oauth.token(args: OauthTokenParameters & {
+  client_id: string
+  client_secret: string
+}): Promise<OauthTokenResponse>
+```
+
+### Parameters
+
+<ParamField path="grant_type" type="string" required>
+  Either `"authorization_code"` or `"refresh_token"`.
+</ParamField>
+
+<ParamField path="code" type="string">
+  The authorization code. Required when `grant_type` is `"authorization_code"`.
+</ParamField>
+
+<ParamField path="redirect_uri" type="string">
+  The redirect URI used in the authorization request.
+</ParamField>
+
+<ParamField path="refresh_token" type="string">
+  The refresh token. Required when `grant_type` is `"refresh_token"`.
+</ParamField>
+
+<ParamField path="external_account" type="object">
+  External account information.
+  
+  <Expandable title="properties">
+    <ResponseField name="key" type="string">
+      The external account key.
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      The external account name.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="client_id" type="string" required>
+  Your integration's OAuth client ID.
+</ParamField>
+
+<ParamField path="client_secret" type="string" required>
+  Your integration's OAuth client secret.
+</ParamField>
+
+### Response
+
+<ResponseField name="access_token" type="string">
+  The access token for making API requests.
+</ResponseField>
+
+<ResponseField name="token_type" type="string">
+  Always `"bearer"`.
+</ResponseField>
+
+<ResponseField name="refresh_token" type="string | null">
+  The refresh token for obtaining a new access token. `null` when using refresh_token grant.
+</ResponseField>
+
+<ResponseField name="bot_id" type="string">
+  The ID of the bot user.
+</ResponseField>
+
+<ResponseField name="workspace_id" type="string">
+  The ID of the workspace.
+</ResponseField>
+
+<ResponseField name="workspace_name" type="string | null">
+  The name of the workspace.
+</ResponseField>
+
+<ResponseField name="workspace_icon" type="string | null">
+  The icon URL of the workspace.
+</ResponseField>
+
+<ResponseField name="owner" type="object">
+  Details about the owner of the integration.
+</ResponseField>
+
+<ResponseField name="duplicated_template_id" type="string | null">
+  The ID of the duplicated template, if any.
+</ResponseField>
+
+### Example
+
+```typescript
+const response = await client.oauth.token({
+  grant_type: "authorization_code",
+  code: "auth-code-123",
+  redirect_uri: "https://example.com/callback",
+  client_id: "your-client-id",
+  client_secret: "your-client-secret",
+})
+
+console.log(response.access_token)
+```
+
+---
+
+## Introspect
+
+Introspect an access token to check its validity and retrieve metadata.
+
+### Method
+
+```typescript
+client.oauth.introspect(args: OauthIntrospectParameters & {
+  client_id: string
+  client_secret: string
+}): Promise<OauthIntrospectResponse>
+```
+
+### Parameters
+
+<ParamField path="token" type="string" required>
+  The access token to introspect.
+</ParamField>
+
+<ParamField path="client_id" type="string" required>
+  Your integration's OAuth client ID.
+</ParamField>
+
+<ParamField path="client_secret" type="string" required>
+  Your integration's OAuth client secret.
+</ParamField>
+
+### Response
+
+<ResponseField name="active" type="boolean">
+  Whether the token is currently active.
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  The scopes granted by the token.
+</ResponseField>
+
+<ResponseField name="iat" type="number">
+  The timestamp when the token was issued (Unix timestamp).
+</ResponseField>
+
+### Example
+
+```typescript
+const response = await client.oauth.introspect({
+  token: "access-token-123",
+  client_id: "your-client-id",
+  client_secret: "your-client-secret",
+})
+
+console.log(response.active)
+```
+
+---
+
+## Revoke
+
+Revoke an access token.
+
+### Method
+
+```typescript
+client.oauth.revoke(args: OauthRevokeParameters & {
+  client_id: string
+  client_secret: string
+}): Promise<OauthRevokeResponse>
+```
+
+### Parameters
+
+<ParamField path="token" type="string" required>
+  The access token to revoke.
+</ParamField>
+
+<ParamField path="client_id" type="string" required>
+  Your integration's OAuth client ID.
+</ParamField>
+
+<ParamField path="client_secret" type="string" required>
+  Your integration's OAuth client secret.
+</ParamField>
+
+### Response
+
+<ResponseField name="request_id" type="string">
+  The ID of the revocation request.
+</ResponseField>
+
+### Example
+
+```typescript
+const response = await client.oauth.revoke({
+  token: "access-token-123",
+  client_id: "your-client-id",
+  client_secret: "your-client-secret",
+})
+
+console.log("Token revoked successfully")
+```

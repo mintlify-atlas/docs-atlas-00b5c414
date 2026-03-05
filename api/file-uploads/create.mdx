@@ -1,0 +1,129 @@
+---
+title: "Create file upload"
+description: "Initialize a file upload to get an upload URL and file upload ID"
+---
+
+Creates a file upload object and returns an upload URL. This is the first step in the file upload lifecycle.
+
+## Method
+
+```typescript
+client.fileUploads.create({
+  mode: "single_part",
+  filename: "document.pdf",
+  content_type: "application/pdf"
+})
+```
+
+## Parameters
+
+<ParamField path="mode" type="string">
+  How the file is being sent. Use `multi_part` for files larger than 20MB. Use `external_url` for files that are temporarily hosted publicly elsewhere. Default is `single_part`.
+  
+  Options: `"single_part"` | `"multi_part"` | `"external_url"`
+</ParamField>
+
+<ParamField path="filename" type="string">
+  Name of the file to be created. Required when `mode` is `multi_part`. Otherwise optional, and used to override the filename. Must include an extension, or have one inferred from the `content_type` parameter.
+</ParamField>
+
+<ParamField path="content_type" type="string">
+  MIME type of the file to be created. Recommended when sending the file in multiple parts. Must match the content type of the file that's sent, and the extension of the `filename` parameter if any.
+  
+  Examples: `"application/pdf"`, `"image/png"`, `"video/mp4"`
+</ParamField>
+
+<ParamField path="number_of_parts" type="number">
+  When `mode` is `multi_part`, the number of parts you are uploading. This must match the number of parts as well as the final `part_number` you send.
+</ParamField>
+
+<ParamField path="external_url" type="string">
+  When `mode` is `external_url`, provide the HTTPS URL of a publicly accessible file to import into your workspace.
+</ParamField>
+
+## Response
+
+Returns a [FileUpload object](/api/file-uploads#file-upload-object) with:
+
+<ResponseField name="object" type="string">
+  Always `"file_upload"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  Unique identifier for the file upload. Use this in subsequent send and complete calls.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the file upload: `"pending"`, `"uploaded"`, `"expired"`, or `"failed"`
+</ResponseField>
+
+<ResponseField name="upload_url" type="string">
+  URL to use for sending file data. Present when status is `"pending"`.
+</ResponseField>
+
+<ResponseField name="complete_url" type="string">
+  URL for completing a multi-part upload.
+</ResponseField>
+
+<ResponseField name="expiry_time" type="string">
+  ISO 8601 timestamp when the upload URL expires.
+</ResponseField>
+
+<ResponseField name="number_of_parts" type="object">
+  For multi-part uploads, contains `total` and `sent` part counts.
+</ResponseField>
+
+## Examples
+
+### Single-part upload
+
+For files under 20MB:
+
+```typescript
+const fileUpload = await client.fileUploads.create({
+  mode: "single_part",
+  filename: "report.pdf",
+  content_type: "application/pdf"
+})
+
+console.log(fileUpload.id) // Use this ID in the next step
+console.log(fileUpload.upload_url) // URL to send file data to
+```
+
+### Multi-part upload
+
+For files larger than 20MB, split into parts:
+
+```typescript
+const totalParts = 5
+
+const fileUpload = await client.fileUploads.create({
+  mode: "multi_part",
+  filename: "large-video.mp4",
+  content_type: "video/mp4",
+  number_of_parts: totalParts
+})
+
+console.log(fileUpload.id)
+console.log(fileUpload.number_of_parts) // { total: 5, sent: 0 }
+```
+
+### External URL import
+
+Import a file from an external URL:
+
+```typescript
+const fileUpload = await client.fileUploads.create({
+  mode: "external_url",
+  external_url: "https://example.com/document.pdf",
+  filename: "imported-document.pdf"
+})
+
+console.log(fileUpload.status) // Check import status
+```
+
+## Related
+
+- [Send file upload](/api/file-uploads/send) - Upload file data
+- [Complete file upload](/api/file-uploads/complete) - Finalize multi-part upload
+- [List file uploads](/api/file-uploads/list) - Retrieve all file uploads

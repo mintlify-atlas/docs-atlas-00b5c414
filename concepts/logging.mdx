@@ -1,0 +1,448 @@
+---
+title: Logging
+description: Configure logging for debugging and monitoring
+---
+
+The SDK includes a built-in logging system to help debug requests, monitor errors, and track retry behavior.
+
+## Log Levels
+
+The SDK supports four log levels defined in the `LogLevel` enum:
+
+```typescript
+import { LogLevel } from '@notionhq/client'
+
+enum LogLevel {
+  DEBUG = "debug",  // Most verbose - logs everything
+  INFO = "info",    // Request lifecycle events
+  WARN = "warn",    // Warnings and errors (default)
+  ERROR = "error",  // Only errors
+}
+```
+
+### Log Level Hierarchy
+
+Levels are ordered by severity:
+
+- **DEBUG** (20) - Logs all messages including request/response bodies
+- **INFO** (40) - Logs request start, success, retries
+- **WARN** (60) - Logs request failures and warnings (default)
+- **ERROR** (80) - Logs only critical errors
+
+When you set a log level, all messages at that level and higher are logged.
+
+## Basic Configuration
+
+Set the log level when creating the client:
+
+```typescript
+import { Client, LogLevel } from '@notionhq/client'
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logLevel: LogLevel.INFO,
+})
+```
+
+### Default Logging (WARN)
+
+By default, only warnings and errors are logged:
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  // logLevel: LogLevel.WARN (default)
+})
+
+// Console output:
+// @notionhq/client warn: request fail { code: 'object_not_found', ... }
+```
+
+### Verbose Logging (DEBUG)
+
+Enable debug logging to see all request details:
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logLevel: LogLevel.DEBUG,
+})
+
+// Console output:
+// @notionhq/client info: request start { method: 'get', path: 'pages/...' }
+// @notionhq/client debug: failed response body { body: '{"object": ...}' }
+// @notionhq/client info: request success { method: 'get', path: '...' }
+```
+
+### Silent Logging (ERROR)
+
+Only log critical errors:
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logLevel: LogLevel.ERROR,
+})
+
+// Only errors are logged, successful requests are silent
+```
+
+## What Gets Logged
+
+### INFO Level Messages
+
+**Request Start:**
+```typescript
+// @notionhq/client info: request start {
+//   method: 'post',
+//   path: 'pages'
+// }
+```
+
+**Request Success:**
+```typescript
+// @notionhq/client info: request success {
+//   method: 'post',
+//   path: 'pages',
+//   requestId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+// }
+```
+
+**Retry Attempt:**
+```typescript
+// @notionhq/client info: retrying request {
+//   method: 'get',
+//   path: 'pages/page-id',
+//   attempt: 1,
+//   delayMs: 1234
+// }
+```
+
+### WARN Level Messages
+
+**Request Failure:**
+```typescript
+// @notionhq/client warn: request fail {
+//   code: 'object_not_found',
+//   message: 'Could not find page with ID: ...',
+//   attempt: 0,
+//   requestId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+// }
+```
+
+**Unknown Parameters:**
+```typescript
+// @notionhq/client warn: unknown parameters were ignored {
+//   unknownParams: ['page_size'],
+//   knownParams: ['block_id', 'start_cursor', 'page_size']
+// }
+```
+
+### DEBUG Level Messages
+
+**Failed Response Body:**
+```typescript
+// @notionhq/client debug: failed response body {
+//   body: '{"object": "error", "status": 404, ...}'
+// }
+```
+
+## Custom Logger
+
+Provide a custom logger function to send logs to your own logging system:
+
+```typescript
+import { Client, LogLevel, Logger } from '@notionhq/client'
+
+const customLogger: Logger = (level, message, extraInfo) => {
+  // Send to your logging service
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    ...extraInfo,
+  }))
+}
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logLevel: LogLevel.INFO,
+  logger: customLogger,
+})
+```
+
+### Logger Type
+
+The `Logger` type is a function that receives three arguments:
+
+```typescript
+type Logger = (
+  level: LogLevel,
+  message: string,
+  extraInfo: Record<string, unknown>
+) => void
+```
+
+<ParamField path="level" type="LogLevel">
+  The log level for this message (DEBUG, INFO, WARN, or ERROR).
+</ParamField>
+
+<ParamField path="message" type="string">
+  A short description of the event (e.g., `"request start"`, `"request fail"`).
+</ParamField>
+
+<ParamField path="extraInfo" type="Record<string, unknown>">
+  Additional context as a key-value object (method, path, error codes, etc.).
+</ParamField>
+
+## Custom Logger Examples
+
+### Structured JSON Logging
+
+```typescript
+import { Logger, LogLevel } from '@notionhq/client'
+
+const jsonLogger: Logger = (level, message, extraInfo) => {
+  const log = {
+    timestamp: Date.now(),
+    service: 'notion-sdk',
+    level,
+    message,
+    ...extraInfo,
+  }
+  console.log(JSON.stringify(log))
+}
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logger: jsonLogger,
+  logLevel: LogLevel.INFO,
+})
+```
+
+### Pino Logger
+
+```typescript
+import pino from 'pino'
+import { Logger } from '@notionhq/client'
+
+const logger = pino()
+
+const pinoLogger: Logger = (level, message, extraInfo) => {
+  logger[level]({ ...extraInfo }, message)
+}
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logger: pinoLogger,
+  logLevel: LogLevel.INFO,
+})
+```
+
+### Winston Logger
+
+```typescript
+import winston from 'winston'
+import { Logger } from '@notionhq/client'
+
+const logger = winston.createLogger({
+  transports: [new winston.transports.Console()],
+})
+
+const winstonLogger: Logger = (level, message, extraInfo) => {
+  logger.log(level, message, extraInfo)
+}
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logger: winstonLogger,
+  logLevel: LogLevel.INFO,
+})
+```
+
+### Filter Sensitive Data
+
+```typescript
+import { Logger } from '@notionhq/client'
+
+const sanitizingLogger: Logger = (level, message, extraInfo) => {
+  const sanitized = { ...extraInfo }
+  
+  // Remove sensitive fields
+  delete sanitized.auth
+  delete sanitized.authorization
+  
+  // Redact request IDs in production
+  if (process.env.NODE_ENV === 'production') {
+    if (sanitized.requestId) {
+      sanitized.requestId = '[redacted]'
+    }
+  }
+  
+  console[level](`notion-sdk ${level}:`, message, sanitized)
+}
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logger: sanitizingLogger,
+})
+```
+
+### Only Log Errors
+
+```typescript
+import { Logger, LogLevel } from '@notionhq/client'
+
+const errorOnlyLogger: Logger = (level, message, extraInfo) => {
+  if (level === LogLevel.ERROR || level === LogLevel.WARN) {
+    console.error('Notion SDK error:', message, extraInfo)
+  }
+}
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logger: errorOnlyLogger,
+  logLevel: LogLevel.WARN,
+})
+```
+
+## Production Best Practices
+
+### Development vs Production
+
+```typescript
+import { Client, LogLevel } from '@notionhq/client'
+
+const isDevelopment = process.env.NODE_ENV === 'development'
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logLevel: isDevelopment ? LogLevel.DEBUG : LogLevel.WARN,
+})
+```
+
+### Sampling High-Volume Logs
+
+```typescript
+import { Logger, LogLevel } from '@notionhq/client'
+
+let logCounter = 0
+const SAMPLE_RATE = 0.1 // Log 10% of INFO messages
+
+const samplingLogger: Logger = (level, message, extraInfo) => {
+  if (level === LogLevel.INFO) {
+    logCounter++
+    if (Math.random() > SAMPLE_RATE) {
+      return // Skip this log
+    }
+  }
+  
+  console[level](`notion-sdk ${level}:`, message, {
+    ...extraInfo,
+    sampleNumber: logCounter,
+  })
+}
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logger: samplingLogger,
+  logLevel: LogLevel.INFO,
+})
+```
+
+### Log Aggregation
+
+```typescript
+import { Logger } from '@notionhq/client'
+
+const aggregatingLogger: Logger = (level, message, extraInfo) => {
+  // Send to log aggregation service
+  fetch('https://logs.example.com/ingest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      timestamp: Date.now(),
+      source: 'notion-sdk',
+      level,
+      message,
+      metadata: extraInfo,
+    }),
+  }).catch(console.error)
+}
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logger: aggregatingLogger,
+  logLevel: LogLevel.WARN,
+})
+```
+
+## Debugging Tips
+
+### Enable Debug Logs Temporarily
+
+```typescript
+import { Client, LogLevel } from '@notionhq/client'
+
+const DEBUG = process.env.DEBUG_NOTION === 'true'
+
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logLevel: DEBUG ? LogLevel.DEBUG : LogLevel.WARN,
+})
+
+// Run with: DEBUG_NOTION=true node app.js
+```
+
+### Log Request IDs
+
+Request IDs are automatically included in success and failure logs when available:
+
+```typescript
+// @notionhq/client info: request success {
+//   method: 'get',
+//   path: 'pages/page-id',
+//   requestId: 'a1b2c3d4-...'  // Use this for Notion support
+// }
+```
+
+Include these IDs when contacting Notion support.
+
+### Monitor Retry Patterns
+
+Set `logLevel: LogLevel.INFO` to see retry attempts:
+
+```typescript
+const notion = new Client({
+  auth: process.env.NOTION_API_KEY,
+  logLevel: LogLevel.INFO,
+})
+
+// @notionhq/client info: retrying request {
+//   method: 'get',
+//   path: 'pages/page-id',
+//   attempt: 1,
+//   delayMs: 2341
+// }
+```
+
+Frequent retries may indicate rate limiting or API issues.
+
+## Default Console Logger
+
+The SDK uses a simple console logger by default:
+
+```typescript
+import { Logger, LogLevel } from '@notionhq/client'
+
+export function makeConsoleLogger(name: string): Logger {
+  return (level, message, extraInfo) => {
+    console[level](`${name} ${level}:`, message, extraInfo)
+  }
+}
+
+// Default logger output format:
+// @notionhq/client info: request start { method: 'get', path: '...' }
+```
+
+This logger writes to `console.debug`, `console.info`, `console.warn`, and `console.error`.

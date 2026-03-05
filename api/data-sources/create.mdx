@@ -1,0 +1,180 @@
+---
+title: 'dataSources.create'
+description: 'Create a new data source in a database'
+---
+
+## Method
+
+```typescript
+client.dataSources.create(parameters: CreateDataSourceParameters): Promise<DataSourceObjectResponse | PartialDataSourceObjectResponse>
+```
+
+Creates a new data source within a parent database. Data sources are structured data containers that can be queried and managed independently.
+
+## Parameters
+
+<ParamField path="parent" type="object" required>
+  The parent database where the data source will be created.
+  
+  <ParamField path="parent.type" type="string" default="database_id">
+    Always `database_id`
+  </ParamField>
+  
+  <ParamField path="parent.database_id" type="string" required>
+    The ID of the parent database (with or without dashes)
+  </ParamField>
+</ParamField>
+
+<ParamField path="properties" type="Record<string, PropertyConfiguration>" required>
+  Property schema of the data source. Each key is a property name, and each value is a property configuration object.
+  
+  Supported property types:
+  - `title` - Title property (required for data sources)
+  - `rich_text` - Rich text content
+  - `number` - Numeric values
+  - `select` - Single select from options
+  - `multi_select` - Multiple selections
+  - `date` - Date or date range
+  - `people` - User references
+  - `files` - File attachments
+  - `checkbox` - Boolean values
+  - `url` - URL strings
+  - `email` - Email addresses
+  - `phone_number` - Phone numbers
+  - `formula` - Calculated values
+  - `relation` - Relations to other data sources
+  - `rollup` - Aggregate values from relations
+  - `created_time` - Automatic creation timestamp
+  - `created_by` - Automatic creator reference
+  - `last_edited_time` - Automatic edit timestamp
+  - `last_edited_by` - Automatic editor reference
+</ParamField>
+
+<ParamField path="title" type="RichTextItemRequest[]">
+  Title of the data source as it appears in Notion. Array of rich text objects.
+</ParamField>
+
+<ParamField path="icon" type="PageIconRequest | null">
+  Icon for the data source. Can be an emoji, external URL, or file upload.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. Overrides the client-level auth if provided.
+</ParamField>
+
+## Response
+
+Returns a `DataSourceObjectResponse` or `PartialDataSourceObjectResponse`.
+
+<ResponseField name="object" type="string">
+  Always `"data_source"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The unique identifier of the data source
+</ResponseField>
+
+<ResponseField name="title" type="RichTextItemResponse[]">
+  The title of the data source
+</ResponseField>
+
+<ResponseField name="description" type="RichTextItemResponse[]">
+  The description of the data source
+</ResponseField>
+
+<ResponseField name="parent" type="object">
+  The parent of the data source (database or another data source)
+</ResponseField>
+
+<ResponseField name="properties" type="Record<string, DatabasePropertyConfigResponse>">
+  The property schema of the data source
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  ISO 8601 timestamp when the data source was created
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the data source was last edited
+</ResponseField>
+
+<ResponseField name="created_by" type="PartialUserObjectResponse">
+  The user who created the data source
+</ResponseField>
+
+<ResponseField name="last_edited_by" type="PartialUserObjectResponse">
+  The user who last edited the data source
+</ResponseField>
+
+<ResponseField name="icon" type="PageIconResponse | null">
+  The icon of the data source
+</ResponseField>
+
+<ResponseField name="cover" type="PageCoverResponse | null">
+  The cover image of the data source
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The Notion URL of the data source
+</ResponseField>
+
+<ResponseField name="archived" type="boolean">
+  Whether the data source is archived
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  Whether the data source is in the trash
+</ResponseField>
+
+## Example
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_API_KEY })
+
+const dataSource = await notion.dataSources.create({
+  parent: {
+    database_id: "195de9221179449fab8075a27c979105"
+  },
+  properties: {
+    Name: {
+      title: {}
+    },
+    Description: {
+      rich_text: {}
+    },
+    Status: {
+      select: {
+        options: [
+          { name: "Active", color: "green" },
+          { name: "Inactive", color: "gray" }
+        ]
+      }
+    },
+    Count: {
+      number: {
+        format: "number"
+      }
+    }
+  },
+  title: [
+    {
+      type: "text",
+      text: { content: "My Data Source" }
+    }
+  ],
+  icon: {
+    type: "emoji",
+    emoji: "📊"
+  }
+})
+
+console.log(`Created data source: ${dataSource.id}`)
+```
+
+## Related Methods
+
+- [dataSources.retrieve](/api/data-sources/retrieve) - Retrieve a data source by ID
+- [dataSources.update](/api/data-sources/update) - Update a data source
+- [dataSources.query](/api/data-sources/query) - Query pages from a data source

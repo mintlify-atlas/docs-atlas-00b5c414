@@ -1,0 +1,74 @@
+---
+title: "Retrieve a comment"
+description: "Retrieves a Comment object using the ID specified in the request."
+---
+
+## Method
+
+```typescript
+client.comments.retrieve(args: GetCommentParameters): Promise<GetCommentResponse>
+```
+
+## Parameters
+
+<ParamField path="comment_id" type="string" required>
+  The ID of the comment to retrieve.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. If not provided, the client-level auth is used.
+</ParamField>
+
+## Response
+
+Returns a [Comment object](/api/types#comment-object).
+
+<ResponseField name="object" type="string">
+  Always `"comment"`.
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the comment.
+</ResponseField>
+
+<ResponseField name="parent" type="object">
+  The parent of the comment (page or block).
+</ResponseField>
+
+<ResponseField name="discussion_id" type="string">
+  The ID of the discussion thread this comment belongs to.
+</ResponseField>
+
+<ResponseField name="rich_text" type="array">
+  The rich text content of the comment.
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  The time when the comment was created (ISO 8601 format).
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  The time when the comment was last edited (ISO 8601 format).
+</ResponseField>
+
+<ResponseField name="created_by" type="object">
+  The user who created the comment.
+</ResponseField>
+
+<ResponseField name="display_name" type="object">
+  The display name of the comment.
+</ResponseField>
+
+<ResponseField name="attachments" type="array">
+  Any file attachments associated with the comment.
+</ResponseField>
+
+## Example
+
+```typescript
+const comment = await client.comments.retrieve({
+  comment_id: "comment-id-123",
+})
+
+console.log(comment.rich_text)
+```

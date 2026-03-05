@@ -1,0 +1,269 @@
+---
+title: API Version Compatibility
+description: Understanding Notion API versions and how to configure them in the SDK
+---
+
+The Notion SDK for JavaScript is designed to work with specific versions of the Notion API. This guide explains version compatibility and how to configure API versions in your application.
+
+## How API Versioning Works
+
+Notion uses date-based API versioning to introduce new features and breaking changes. Each API version is identified by a date in `YYYY-MM-DD` format.
+
+The SDK automatically includes the API version in every request via the `Notion-Version` header.
+
+## SDK and API Version Compatibility
+
+Different SDK versions have different default and minimum API version requirements:
+
+| SDK Version      | Default API Version | Minimum API Version |
+| ---------------- | ------------------- | ------------------- |
+| v3.x             | Earlier versions    | N/A                 |
+| v4.0.0 and above | 2022-06-28          | 2022-06-28          |
+| v5.0.0 and above | 2025-09-03          | 2025-09-03          |
+
+<Warning>
+The current SDK version (v5.11.1) defaults to API version **2025-09-03**. Using an older API version with this SDK may result in compatibility issues.
+</Warning>
+
+## Setting the API Version
+
+You can explicitly set the Notion API version when initializing the Client:
+
+```javascript
+const { Client } = require("@notionhq/client")
+
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  notionVersion: "2025-09-03",
+})
+```
+
+### Using the Default Version
+
+If you don't specify a `notionVersion`, the SDK uses its default:
+
+```javascript
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  // Automatically uses "2025-09-03" in SDK v5.x
+})
+```
+
+The default is defined as `Client.defaultNotionVersion` and changes with major SDK releases.
+
+## Why API Versions Matter
+
+### Breaking Changes
+
+Notion may introduce breaking changes in new API versions, such as:
+
+- Modified response structures
+- Renamed properties
+- Changed validation rules
+- Deprecated endpoints
+
+### New Features
+
+Newer API versions include enhanced capabilities:
+
+- New endpoints (e.g., Data Sources API in 2025-09-03)
+- Additional properties in responses
+- Improved filtering and sorting options
+
+### Type Safety
+
+The SDK's TypeScript definitions are generated based on a specific API version. Using a different API version may cause:
+
+- Type mismatches
+- Missing property definitions
+- Incorrect return types
+
+## Incremental API Version Upgrades
+
+When you need to upgrade your API version without upgrading the SDK, you can use a two-phase approach:
+
+### Phase 1: Test with New API Version
+
+```javascript
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  notionVersion: "2025-09-03", // New version
+})
+```
+
+<Note>
+Test all your API calls thoroughly with the new version before upgrading the SDK. Some responses may have different structures.
+</Note>
+
+### Phase 2: Upgrade the SDK
+
+Once you've verified compatibility:
+
+```bash
+npm install @notionhq/client@latest
+```
+
+Then remove the explicit `notionVersion` setting:
+
+```javascript
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  // Now uses the SDK's default version
+})
+```
+
+## Downgrading API Versions
+
+<Warning>
+Downgrading to an older API version than the SDK's minimum requirement is **not recommended** and may cause errors or unexpected behavior.
+</Warning>
+
+If you must use an older API version:
+
+1. Use an older SDK version that supports that API version
+2. Pin your SDK version in `package.json`:
+   ```json
+   {
+     "dependencies": {
+       "@notionhq/client": "4.15.0"
+     }
+   }
+   ```
+
+## Custom Requests with Different API Versions
+
+If you need to make specific requests with a different API version, you can use custom headers:
+
+```javascript
+const response = await notion.request({
+  path: "pages",
+  method: "get",
+  headers: {
+    "Notion-Version": "2022-06-28",
+  },
+})
+```
+
+<Warning>
+Mixing API versions within a single application is strongly discouraged as it can lead to inconsistent behavior and difficult-to-debug issues.
+</Warning>
+
+## Checking Your Current API Version
+
+To see which API version your Client is using:
+
+```javascript
+const { Client } = require("@notionhq/client")
+
+console.log(Client.defaultNotionVersion)
+// Output: "2025-09-03"
+```
+
+## Version-Specific Considerations
+
+### API Version 2025-09-03
+
+**Requirements:**
+- SDK v5.0.0 or higher
+- Node.js 18 or higher
+
+**New Features:**
+- Data Sources API support
+- Enhanced query capabilities
+- Improved error messages
+
+**Migration Notes:**
+- Review response type changes in the [Notion API changelog](https://developers.notion.com/reference/changes-by-version)
+- Test pagination with new `has_more` behavior
+- Update any hard-coded property names that may have changed
+
+### API Version 2022-06-28
+
+**Requirements:**
+- SDK v4.0.0 or higher
+
+**Features:**
+- Standard Pages, Databases, Blocks APIs
+- User and Comment management
+- Search functionality
+
+**Migration Notes:**
+- This is the minimum version for SDK v4.x
+- Upgrading from earlier API versions requires reviewing response structures
+
+## Best Practices
+
+<Tip>
+**Keep SDK and API versions in sync**: Always use the SDK's recommended API version for the best experience.
+</Tip>
+
+1. **Match SDK and API versions**: Use the default API version for your SDK version
+2. **Test upgrades thoroughly**: Always test in a staging environment before upgrading in production
+3. **Monitor API changes**: Subscribe to Notion's developer updates for API changes
+4. **Document your version**: Note your API version in your application documentation
+5. **Gradual rollout**: When upgrading, consider a gradual rollout to detect issues early
+
+## Troubleshooting Version Issues
+
+### Error: "The API version is not supported"
+
+This error occurs when using an API version that's too old or not recognized:
+
+```javascript
+// Solution: Update to a supported API version
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  notionVersion: "2025-09-03",
+})
+```
+
+### Type Errors in TypeScript
+
+If TypeScript shows errors for properties that should exist:
+
+1. Ensure your SDK version matches your API version requirements
+2. Clear and reinstall dependencies:
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+3. Restart your TypeScript server (VS Code: `Cmd+Shift+P` > "Restart TS Server")
+
+### Unexpected Response Structures
+
+If API responses don't match your expectations:
+
+1. Check the [Notion API changelog](https://developers.notion.com/reference/changes-by-version) for your version
+2. Verify you're using the correct API version:
+   ```javascript
+   console.log(Client.defaultNotionVersion)
+   ```
+3. Enable debug logging to inspect raw responses:
+   ```javascript
+   const { Client, LogLevel } = require("@notionhq/client")
+   
+   const notion = new Client({
+     auth: process.env.NOTION_TOKEN,
+     logLevel: LogLevel.DEBUG,
+   })
+   ```
+
+## Getting Help
+
+For API version-related questions:
+
+- Review [Notion API versioning documentation](https://developers.notion.com/reference/versioning)
+- Check [changes by version](https://developers.notion.com/reference/changes-by-version)
+- Contact Notion developers at `developers@makenotion.com`
+- Report SDK issues on [GitHub](https://github.com/makenotion/notion-sdk-js/issues)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Upgrading Guide" icon="arrow-up" href="/migration/upgrading">
+    Learn how to upgrade between major SDK versions
+  </Card>
+  <Card title="Client Configuration" icon="gear" href="/configuration/client-options">
+    Explore all Client configuration options
+  </Card>
+</CardGroup>

@@ -1,0 +1,75 @@
+---
+title: "List comments"
+description: "Retrieves a list of comments for a specific block or page."
+---
+
+## Method
+
+```typescript
+client.comments.list(args: ListCommentsParameters): Promise<ListCommentsResponse>
+```
+
+## Parameters
+
+<ParamField path="block_id" type="string" required>
+  Identifier for a Notion block or page.
+</ParamField>
+
+<ParamField path="start_cursor" type="string">
+  If supplied, this endpoint will return a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results.
+</ParamField>
+
+<ParamField path="page_size" type="number">
+  The number of items from the full list desired in the response. Maximum: 100.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. If not provided, the client-level auth is used.
+</ParamField>
+
+## Response
+
+<ResponseField name="object" type="string">
+  Always `"list"`.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Always `"comment"`.
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  An array of [Comment objects](/api/types#comment-object).
+</ResponseField>
+
+<ResponseField name="next_cursor" type="string | null">
+  A cursor to use in the next request to get the next page of results. If `null`, there are no more results.
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more results to fetch.
+</ResponseField>
+
+## Example
+
+```typescript
+const response = await client.comments.list({
+  block_id: "page-id-123",
+})
+
+console.log(response.results)
+```
+
+## Pagination
+
+Use the [pagination helpers](/guides/pagination) for easy iteration:
+
+```typescript
+import { iteratePaginatedAPI } from "@notionhq/client"
+
+for await (const comment of iteratePaginatedAPI(
+  client.comments.list,
+  { block_id: "page-id-123" }
+)) {
+  console.log(comment.rich_text)
+}
+```

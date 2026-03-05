@@ -1,80 +1,236 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get up and running with the Notion SDK in minutes
 ---
 
-## Get started in three steps
+<Note>
+Before you begin, make sure you've followed Notion's [Getting Started Guide](https://developers.notion.com/docs/getting-started) to create an integration and obtain an API token.
+</Note>
 
-Get your documentation site running locally and make your first customization.
+## Installation
 
-### Step 1: Set up your local environment
+First, install the Notion SDK:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+```bash
+npm install @notionhq/client
+```
 
-### Step 2: Deploy your changes
+## Initialize the Client
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+Import and initialize a client using your **integration token**:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+<CodeGroup>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+```javascript CommonJS
+const { Client } = require("@notionhq/client")
 
-### Step 3: Go live
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+})
+```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```javascript ES Modules
+import { Client } from "@notionhq/client"
 
-## Next steps
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+})
+```
 
-Now that you have your docs running, explore these key features:
+```typescript TypeScript
+import { Client } from "@notionhq/client"
 
-<CardGroup cols={2}>
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+})
+```
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+</CodeGroup>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+<Warning>
+Never hardcode your API token directly in your code. Always use environment variables or a secure configuration management system.
+</Warning>
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+## Make Your First API Call
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+Once initialized, you can make requests to any Notion API endpoint. Here's an example that lists all users in your workspace:
 
-</CardGroup>
+```javascript
+;(async () => {
+  const listUsersResponse = await notion.users.list({})
+  console.log(listUsersResponse)
+})()
+```
+
+### Example Response
+
+Each method returns a `Promise` that resolves with the API response:
+
+```json
+{
+  "results": [
+    {
+      "object": "user",
+      "id": "d40e767c-d7af-4b18-a86d-55c61f1e39a4",
+      "type": "person",
+      "person": {
+        "email": "avo@example.org"
+      },
+      "name": "Avocado Lovelace",
+      "avatar_url": "https://secure.notion-static.com/e6a352a8-8381-44d0-a1dc-9ed80e62b53d.jpg"
+    }
+  ]
+}
+```
+
+## Query a Data Source
+
+Here's a more advanced example that queries a data source with filters:
+
+```javascript
+const myPage = await notion.dataSources.query({
+  data_source_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  filter: {
+    property: "Landmark",
+    rich_text: {
+      contains: "Bridge",
+    },
+  },
+})
+```
+
+<Tip>
+Endpoint parameters are grouped into a single object. You don't need to remember which parameters go in the path, query, or body.
+</Tip>
+
+## Complete Example
+
+Here's a complete working example that creates a new page in a database:
+
+<Steps>
+
+<Step title="Set up your environment">
+  Create a `.env` file in your project root:
+  
+  ```bash
+  NOTION_TOKEN=secret_your_integration_token_here
+  DATABASE_ID=your_database_id_here
+  ```
+</Step>
+
+<Step title="Create your script">
+  Create a file called `create-page.js`:
+  
+  ```javascript
+  const { Client } = require("@notionhq/client")
+  
+  const notion = new Client({
+    auth: process.env.NOTION_TOKEN,
+  })
+  
+  async function createPage() {
+    try {
+      const response = await notion.pages.create({
+        parent: {
+          database_id: process.env.DATABASE_ID,
+        },
+        properties: {
+          Name: {
+            title: [
+              {
+                text: {
+                  content: "My New Page",
+                },
+              },
+            ],
+          },
+        },
+      })
+      
+      console.log("Page created successfully!")
+      console.log("Page ID:", response.id)
+    } catch (error) {
+      console.error("Error creating page:", error.message)
+    }
+  }
+  
+  createPage()
+  ```
+</Step>
+
+<Step title="Run your script">
+  Execute the script:
+  
+  ```bash
+  node create-page.js
+  ```
+</Step>
+
+</Steps>
+
+## Error Handling
+
+Always wrap your API calls in try-catch blocks to handle errors gracefully:
+
+```javascript
+const { Client, APIErrorCode } = require("@notionhq/client")
+
+try {
+  const notion = new Client({ auth: process.env.NOTION_TOKEN })
+  const myPage = await notion.dataSources.query({
+    data_source_id: dataSourceId,
+    filter: {
+      property: "Landmark",
+      rich_text: {
+        contains: "Bridge",
+      },
+    },
+  })
+} catch (error) {
+  if (error.code === APIErrorCode.ObjectNotFound) {
+    // Handle by asking the user to select a different data source
+    console.error("Data source not found")
+  } else {
+    // Other error handling code
+    console.error(error)
+  }
+}
+```
+
+<Info>
+The SDK provides typed error codes through the `APIErrorCode` enum, making it easy to handle specific error scenarios.
+</Info>
+
+## Available Endpoints
+
+The client provides access to all Notion API endpoints through intuitive namespaces:
+
+- `notion.blocks` - Block CRUD operations
+- `notion.databases` - Database CRUD operations  
+- `notion.dataSources` - Data source operations and querying
+- `notion.pages` - Page CRUD operations
+- `notion.users` - User listing and retrieval
+- `notion.comments` - Comment CRUD operations
+- `notion.fileUploads` - File upload lifecycle management
+- `notion.search()` - Search across workspace
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+For a complete list of available methods and parameters, see the [API Reference](https://developers.notion.com/reference).
 </Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Learn about authentication options including OAuth
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/error-handling">
+    Master error handling with typed error codes
+  </Card>
+  <Card title="TypeScript Support" icon="code" href="/typescript">
+    Leverage full TypeScript support and type guards
+  </Card>
+  <Card title="Examples" icon="book" href="https://github.com/makenotion/notion-cookbook/tree/main/examples">
+    Explore more examples in the Notion Cookbook
+  </Card>
+</CardGroup>

@@ -1,0 +1,111 @@
+---
+title: "Search"
+description: "Searches all parent or child pages and data sources that have been shared with the integration."
+---
+
+## Method
+
+```typescript
+client.search(args: SearchParameters): Promise<SearchResponse>
+```
+
+## Parameters
+
+<ParamField path="query" type="string">
+  The text that the API compares page and data source titles against.
+</ParamField>
+
+<ParamField path="filter" type="object">
+  A filter to limit the results to pages or data sources.
+  
+  <Expandable title="properties">
+    <ResponseField name="property" type="string">
+      Always `"object"`.
+    </ResponseField>
+    
+    <ResponseField name="value" type="string">
+      Either `"page"` or `"data_source"`.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="sort" type="object">
+  How to sort the results.
+  
+  <Expandable title="properties">
+    <ResponseField name="direction" type="string">
+      Either `"ascending"` or `"descending"`.
+    </ResponseField>
+    
+    <ResponseField name="timestamp" type="string">
+      Either `"last_edited_time"` or `"created_time"`.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="start_cursor" type="string">
+  If supplied, this endpoint will return a page of results starting after the cursor provided. If not supplied, this endpoint will return the first page of results.
+</ParamField>
+
+<ParamField path="page_size" type="number">
+  The number of items from the full list desired in the response. Maximum: 100.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. If not provided, the client-level auth is used.
+</ParamField>
+
+## Response
+
+<ResponseField name="object" type="string">
+  Always `"list"`.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Always `"page_or_data_source"`.
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  An array of [Page objects](/api/types#page-object) or [DataSource objects](/api/types#data-source-object) that match the search query.
+</ResponseField>
+
+<ResponseField name="next_cursor" type="string | null">
+  A cursor to use in the next request to get the next page of results. If `null`, there are no more results.
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more results to fetch.
+</ResponseField>
+
+## Example
+
+```typescript
+const response = await client.search({
+  query: "External tasks",
+  filter: {
+    property: "object",
+    value: "page",
+  },
+  sort: {
+    direction: "ascending",
+    timestamp: "last_edited_time",
+  },
+})
+
+console.log(response.results)
+```
+
+## Pagination
+
+Use the [pagination helpers](/guides/pagination) for easy iteration:
+
+```typescript
+import { iteratePaginatedAPI } from "@notionhq/client"
+
+for await (const result of iteratePaginatedAPI(
+  client.search,
+  { query: "Tasks" }
+)) {
+  console.log(result)
+}
+```

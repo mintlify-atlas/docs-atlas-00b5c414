@@ -1,0 +1,54 @@
+---
+title: "Retrieve a user"
+description: "Retrieves a User object using the ID specified in the request."
+---
+
+## Method
+
+```typescript
+client.users.retrieve(args: GetUserParameters): Promise<GetUserResponse>
+```
+
+## Parameters
+
+<ParamField path="user_id" type="string" required>
+  The ID of the user to retrieve.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. If not provided, the client-level auth is used.
+</ParamField>
+
+## Response
+
+Returns a [User object](/api/types#user-object).
+
+<ResponseField name="object" type="string">
+  Always `"user"`.
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the user.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Type of the user. Possible values: `"person"`, `"bot"`, `"agent"`.
+</ResponseField>
+
+<ResponseField name="name" type="string | null">
+  The name of the user.
+</ResponseField>
+
+<ResponseField name="avatar_url" type="string | null">
+  The avatar URL of the user.
+</ResponseField>
+
+## Example
+
+```typescript
+const user = await client.users.retrieve({
+  user_id: "user-id-123",
+})
+
+console.log(user.name)
+```

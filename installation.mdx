@@ -1,0 +1,99 @@
+---
+title: Installation
+description: Install the Notion SDK for JavaScript and get started with your integration
+---
+
+## Package Manager
+
+Install the `@notionhq/client` package using your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install @notionhq/client
+```
+
+```bash yarn
+yarn add @notionhq/client
+```
+
+```bash pnpm
+pnpm add @notionhq/client
+```
+
+</CodeGroup>
+
+## Requirements
+
+The Notion SDK has the following minimum version requirements:
+
+### Runtime
+
+- **Node.js**: `>= 18`
+
+The SDK is designed for Node.js environments and leverages modern JavaScript features available in Node 18 and later.
+
+<Warning>
+Node.js versions below 18 are not supported. Upgrade to Node.js 18 or later for compatibility.
+</Warning>
+
+### TypeScript (Optional)
+
+- **TypeScript**: `>= 5.9`
+
+If you're using TypeScript in your project, version 5.9 or later is recommended for full type definition support.
+
+<Info>
+The SDK includes comprehensive TypeScript definitions out of the box. No additional `@types` packages are required.
+</Info>
+
+## Version Compatibility
+
+Different versions of the Notion SDK are designed to work with specific Notion API versions:
+
+| SDK Version      | Minimum Recommended API Version |
+| ---------------- | ------------------------------- |
+| v4.0.0 and above | 2022-06-28                      |
+| v5.0.0 and above | 2025-09-03                      |
+
+<Tip>
+The SDK automatically uses the latest supported API version (`2025-09-03` for v5.x). You can override this by passing a `notionVersion` option when creating the client.
+</Tip>
+
+## Verify Installation
+
+After installation, verify that the package is properly installed by importing it in your project:
+
+<CodeGroup>
+
+```javascript CommonJS
+const { Client } = require("@notionhq/client")
+
+console.log("Notion SDK installed successfully!")
+```
+
+```javascript ES Modules
+import { Client } from "@notionhq/client"
+
+console.log("Notion SDK installed successfully!")
+```
+
+```typescript TypeScript
+import { Client } from "@notionhq/client"
+
+const client: Client = new Client()
+console.log("Notion SDK installed successfully!")
+```
+
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Learn how to initialize the client and make your first API call
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Set up authentication with integration tokens or OAuth
+  </Card>
+</CardGroup>

@@ -1,0 +1,306 @@
+---
+title: Update a Block
+description: Update the content and properties of an existing block
+---
+
+Updates a block object by modifying its type-specific content, archival status, or trash status. Not all block types can be updated, and only certain properties are mutable.
+
+## Method Signature
+
+```typescript
+client.blocks.update(args: UpdateBlockParameters): Promise<UpdateBlockResponse>
+```
+
+Source: [Client.ts:597-608](/home/daytona/workspace/source/src/Client.ts#L597-L608)
+
+## Parameters
+
+<ParamField path="block_id" type="string" required>
+  The ID of the block to update
+</ParamField>
+
+<ParamField path="type" type="string">
+  The type of block (e.g., `"paragraph"`, `"heading_1"`, `"code"`, etc.). Must match the type-specific content being updated.
+</ParamField>
+
+<ParamField path="archived" type="boolean">
+  Set to `true` to archive the block, or `false` to unarchive it
+</ParamField>
+
+<ParamField path="in_trash" type="boolean">
+  Set to `true` to move the block to trash, or `false` to restore it
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Optional authentication token to override the client-level auth
+</ParamField>
+
+### Type-Specific Parameters
+
+Depending on the block type, you can update type-specific properties:
+
+<ParamField path="paragraph" type="object">
+  For paragraph blocks:
+  - `rich_text` - Array of rich text objects
+  - `color` - Text color (e.g., `"blue"`, `"red_background"`)
+</ParamField>
+
+<ParamField path="heading_1" type="object">
+  For heading 1 blocks:
+  - `rich_text` - Array of rich text objects
+  - `color` - Text color
+  - `is_toggleable` - Whether the heading can be toggled
+</ParamField>
+
+<ParamField path="heading_2" type="object">
+  For heading 2 blocks (same as heading_1)
+</ParamField>
+
+<ParamField path="heading_3" type="object">
+  For heading 3 blocks (same as heading_1)
+</ParamField>
+
+<ParamField path="code" type="object">
+  For code blocks:
+  - `rich_text` - Array of rich text objects containing the code
+  - `language` - Programming language (e.g., `"javascript"`, `"python"`)
+  - `caption` - Array of rich text objects for the caption
+</ParamField>
+
+<ParamField path="to_do" type="object">
+  For to-do blocks:
+  - `rich_text` - Array of rich text objects
+  - `checked` - Boolean indicating if the item is checked
+  - `color` - Text color
+</ParamField>
+
+<ParamField path="callout" type="object">
+  For callout blocks:
+  - `rich_text` - Array of rich text objects
+  - `icon` - Icon object (emoji or file)
+  - `color` - Background color
+</ParamField>
+
+## Response
+
+Returns the updated `BlockObjectResponse` or `PartialBlockObjectResponse`.
+
+<ResponseField name="object" type="string">
+  Always `"block"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The block ID
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  The block type
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  Updated timestamp reflecting the modification
+</ResponseField>
+
+<ResponseField name="last_edited_by" type="PartialUserObjectResponse">
+  User who made the update
+</ResponseField>
+
+<ResponseField name="archived" type="boolean">
+  Current archived status
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  Current trash status
+</ResponseField>
+
+## Examples
+
+### Update Paragraph Text
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+const updatedBlock = await notion.blocks.update({
+  block_id: "paragraph-block-id",
+  paragraph: {
+    rich_text: [
+      {
+        type: "text",
+        text: {
+          content: "Updated paragraph content",
+        },
+      },
+    ],
+    color: "blue",
+  },
+})
+
+console.log("Block updated:", updatedBlock.last_edited_time)
+```
+
+### Update Code Block Language
+
+```typescript
+const codeBlock = await notion.blocks.update({
+  block_id: "code-block-id",
+  code: {
+    rich_text: [
+      {
+        type: "text",
+        text: {
+          content: "console.log('Hello, World!')",
+        },
+      },
+    ],
+    language: "javascript",
+    caption: [
+      {
+        type: "text",
+        text: {
+          content: "Example code",
+        },
+      },
+    ],
+  },
+})
+```
+
+### Toggle a To-Do Item
+
+```typescript
+const todoBlock = await notion.blocks.update({
+  block_id: "todo-block-id",
+  to_do: {
+    rich_text: [
+      {
+        type: "text",
+        text: {
+          content: "Complete documentation",
+        },
+      },
+    ],
+    checked: true,
+  },
+})
+
+console.log("To-do checked:", todoBlock.type === "to_do" && todoBlock.to_do.checked)
+```
+
+### Archive a Block
+
+```typescript
+// Archive a block without changing its content
+const archivedBlock = await notion.blocks.update({
+  block_id: "your-block-id",
+  archived: true,
+})
+
+console.log("Block archived:", archivedBlock.archived)
+```
+
+### Restore from Trash
+
+```typescript
+// Move a block out of trash
+const restoredBlock = await notion.blocks.update({
+  block_id: "your-block-id",
+  in_trash: false,
+})
+
+console.log("Block restored:", !restoredBlock.in_trash)
+```
+
+### Update Callout with Icon
+
+```typescript
+const calloutBlock = await notion.blocks.update({
+  block_id: "callout-block-id",
+  callout: {
+    rich_text: [
+      {
+        type: "text",
+        text: {
+          content: "Important note!",
+        },
+      },
+    ],
+    icon: {
+      type: "emoji",
+      emoji: "💡",
+    },
+    color: "yellow_background",
+  },
+})
+```
+
+## Limitations
+
+<Warning>
+Not all block types support all updates. Some restrictions:
+
+- Child pages and child databases cannot have their content updated
+- Table blocks cannot be updated after creation
+- Some read-only blocks (like breadcrumbs) have limited update capabilities
+- You cannot change a block's type - create a new block instead
+</Warning>
+
+## Error Handling
+
+```typescript
+import { APIResponseError } from "@notionhq/client"
+
+try {
+  const block = await notion.blocks.update({
+    block_id: "your-block-id",
+    paragraph: {
+      rich_text: [{ type: "text", text: { content: "New content" } }],
+    },
+  })
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    switch (error.code) {
+      case "object_not_found":
+        console.error("Block not found")
+        break
+      case "validation_error":
+        console.error("Invalid update parameters:", error.message)
+        break
+      case "unauthorized":
+        console.error("Not authorized to update this block")
+        break
+      default:
+        console.error("API error:", error.code, error.message)
+    }
+  }
+}
+```
+
+## Type Safety
+
+The SDK provides full TypeScript support for block updates:
+
+```typescript
+// TypeScript enforces correct structure for each block type
+const block = await notion.blocks.update({
+  block_id: "id",
+  heading_1: {
+    rich_text: [{ type: "text", text: { content: "Title" } }],
+    color: "blue", // Autocomplete for valid colors
+    is_toggleable: true,
+  },
+})
+
+// Type guard for type-specific properties
+if (block.type === "heading_1") {
+  console.log(block.heading_1.is_toggleable)
+}
+```
+
+## Related
+
+- [Retrieve a Block](/api/blocks/retrieve)
+- [Delete a Block](/api/blocks/delete)
+- [Append Block Children](/api/blocks/children)
+- [Rich Text Reference](https://developers.notion.com/reference/rich-text)

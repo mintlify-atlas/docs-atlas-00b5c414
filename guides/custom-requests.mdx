@@ -1,0 +1,344 @@
+---
+title: Custom Requests
+description: Make custom API calls using the low-level request() method
+---
+
+While the Notion SDK provides convenient methods for all standard API endpoints, you can use the `client.request()` method to make custom API calls. This is useful for:
+
+- Testing new Notion API features before the SDK is updated
+- Debugging API responses
+- Building custom wrappers or abstractions
+- Working with beta or experimental endpoints
+
+## The request() Method
+
+The `request()` method is the low-level foundation that all SDK methods use internally.
+
+### Method Signature
+
+```typescript
+client.request<ResponseBody extends object>(
+  args: RequestParameters
+): Promise<ResponseBody>
+```
+
+### RequestParameters
+
+```typescript
+type RequestParameters = {
+  path: string
+  method: Method // "get" | "post" | "patch" | "delete"
+  query?: QueryParams
+  body?: Record<string, unknown>
+  formDataParams?: Record<string, string | FileParam>
+  headers?: Record<string, string>
+  auth?: string | { client_id: string; client_secret: string }
+}
+```
+
+## Making Custom Requests
+
+### GET Request Example
+
+Retrieve a page using the low-level API:
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+const page = await notion.request({
+  path: "pages/your-page-id",
+  method: "get",
+})
+
+console.log(page)
+```
+
+### POST Request Example
+
+Create a page with a custom request:
+
+```typescript
+const newPage = await notion.request({
+  path: "pages",
+  method: "post",
+  body: {
+    parent: {
+      type: "database_id",
+      database_id: "your-database-id",
+    },
+    properties: {
+      Name: {
+        title: [
+          {
+            text: {
+              content: "New Page from Custom Request",
+            },
+          },
+        ],
+      },
+    },
+  },
+})
+
+console.log(newPage.id)
+```
+
+### PATCH Request Example
+
+Update a block:
+
+```typescript
+const updatedBlock = await notion.request({
+  path: "blocks/block-id",
+  method: "patch",
+  body: {
+    paragraph: {
+      rich_text: [
+        {
+          text: {
+            content: "Updated content",
+          },
+        },
+      ],
+    },
+  },
+})
+```
+
+### DELETE Request Example
+
+Delete a block:
+
+```typescript
+const deletedBlock = await notion.request({
+  path: "blocks/block-id",
+  method: "delete",
+})
+
+console.log(deletedBlock.archived) // true
+```
+
+## Query Parameters
+
+Pass query parameters using the `query` option:
+
+```typescript
+const blocks = await notion.request({
+  path: "blocks/block-id/children",
+  method: "get",
+  query: {
+    page_size: 50,
+    start_cursor: "cursor-string",
+  },
+})
+```
+
+## Custom Headers
+
+Add custom headers to your request:
+
+```typescript
+const response = await notion.request({
+  path: "pages/page-id",
+  method: "get",
+  headers: {
+    "X-Custom-Header": "value",
+  },
+})
+```
+
+<Note>
+The SDK automatically adds required headers like `Notion-Version`, `Authorization`, and `Content-Type`. You don't need to include these manually.
+</Note>
+
+## Request-Level Authentication
+
+Override the client's default authentication for a single request:
+
+```typescript
+const notion = new Client()
+
+// Use a different token for this request
+const page = await notion.request({
+  path: "pages/page-id",
+  method: "get",
+  auth: "secret_different_token",
+})
+```
+
+### OAuth Authentication
+
+For OAuth endpoints, pass client credentials:
+
+```typescript
+const tokenResponse = await notion.request({
+  path: "oauth/token",
+  method: "post",
+  body: {
+    grant_type: "authorization_code",
+    code: "auth-code",
+  },
+  auth: {
+    client_id: "your-client-id",
+    client_secret: "your-client-secret",
+  },
+})
+```
+
+## Type Safety
+
+You can provide a type parameter for the response:
+
+```typescript
+type PageResponse = {
+  object: "page"
+  id: string
+  created_time: string
+  // ... other properties
+}
+
+const page = await notion.request<PageResponse>({
+  path: "pages/page-id",
+  method: "get",
+})
+
+// TypeScript knows page.id exists
+console.log(page.id)
+```
+
+Or import types from the SDK:
+
+```typescript
+import { GetPageResponse } from "@notionhq/client/build/src/api-endpoints"
+
+const page = await notion.request<GetPageResponse>({
+  path: "pages/page-id",
+  method: "get",
+})
+```
+
+## Error Handling
+
+The `request()` method throws the same errors as other SDK methods:
+
+```typescript
+import { APIResponseError } from "@notionhq/client"
+
+try {
+  const page = await notion.request({
+    path: "pages/invalid-id",
+    method: "get",
+  })
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    console.error("API Error:", error.code)
+    console.error("Status:", error.status)
+    console.error("Message:", error.message)
+  } else {
+    console.error("Unknown error:", error)
+  }
+}
+```
+
+## Automatic Features
+
+The `request()` method includes all the built-in SDK features:
+
+<CardGroup cols={2}>
+  <Card title="Automatic Retries" icon="rotate">
+    Rate-limited and server error requests are automatically retried with exponential back-off
+  </Card>
+  <Card title="Request Timeout" icon="clock">
+    Requests timeout after 60 seconds by default (configurable via `timeoutMs` in client options)
+  </Card>
+  <Card title="Version Header" icon="tag">
+    The SDK automatically sets the `Notion-Version` header to the supported API version
+  </Card>
+  <Card title="Logging" icon="file-lines">
+    Requests are logged based on the client's `logLevel` setting
+  </Card>
+</CardGroup>
+
+## Internal Request Flow
+
+Here's what happens when you call `request()`:
+
+1. **Path Validation** - Checks for path traversal attacks (src/Client.ts:239)
+2. **URL Construction** - Builds full URL with base URL and query parameters (src/Client.ts:243)
+3. **Headers** - Adds authentication, version, and content-type headers (src/Client.ts:245-249)
+4. **Retry Logic** - Executes request with automatic retry for transient errors (src/Client.ts:252-258)
+5. **Response Parsing** - Parses JSON response or throws typed error (src/Client.ts:430-442)
+
+## Practical Example: Custom Endpoint
+
+Imagine Notion releases a new beta endpoint for AI summaries:
+
+```typescript
+interface AISummaryResponse {
+  summary: string
+  key_points: string[]
+  request_id: string
+}
+
+async function getAISummary(pageId: string): Promise<AISummaryResponse> {
+  return await notion.request<AISummaryResponse>({
+    path: `pages/${pageId}/ai-summary`,
+    method: "post",
+    body: {
+      model: "gpt-4",
+      max_length: 500,
+    },
+  })
+}
+
+const summary = await getAISummary("your-page-id")
+console.log(summary.summary)
+```
+
+## When to Use request()
+
+<AccordionGroup>
+  <Accordion title="Use request() for new or undocumented endpoints">
+    If Notion releases a new API endpoint that isn't yet in the SDK, you can call it immediately using `request()`.
+  </Accordion>
+
+  <Accordion title="Prefer built-in methods for standard endpoints">
+    For standard endpoints like `pages.retrieve()` or `databases.query()`, use the built-in methods. They provide better type safety and documentation.
+
+    ```typescript
+    // Prefer this
+    await notion.pages.retrieve({ page_id: "id" })
+
+    // Over this
+    await notion.request({ path: "pages/id", method: "get" })
+    ```
+  </Accordion>
+
+  <Accordion title="Use request() for debugging">
+    The `request()` method is useful for debugging API responses or testing parameter combinations.
+  </Accordion>
+</AccordionGroup>
+
+## Advanced: Form Data Requests
+
+For file uploads, use `formDataParams` instead of `body`:
+
+```typescript
+const fileUpload = await notion.request({
+  path: "file_uploads/upload-id/send",
+  method: "post",
+  formDataParams: {
+    file: {
+      filename: "document.pdf",
+      data: fileBuffer, // Buffer or Blob
+    },
+    part_number: "1",
+  },
+})
+```
+
+<Note>
+When using `formDataParams`, don't provide a `body`. The SDK automatically sets the correct `multipart/form-data` content type.
+</Note>

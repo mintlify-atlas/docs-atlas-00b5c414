@@ -1,0 +1,164 @@
+---
+title: "Complete file upload"
+description: "Finalize a multi-part file upload after all parts have been sent"
+---
+
+Completes a multi-part file upload after all parts have been successfully sent. This finalizes the upload and makes the file available for use in Notion.
+
+## Method
+
+```typescript
+client.fileUploads.complete({
+  file_upload_id: "file_upload_id"
+})
+```
+
+## Parameters
+
+<ParamField path="file_upload_id" type="string" required>
+  Identifier for a Notion file upload object, obtained from the `id` of the [Create File Upload](/api/file-uploads/create) response.
+</ParamField>
+
+## Response
+
+Returns the final [FileUpload object](/api/file-uploads#file-upload-object) with updated status.
+
+<ResponseField name="status" type="string">
+  `"uploaded"` if successful, or `"failed"` if an error occurred during processing.
+</ResponseField>
+
+<ResponseField name="number_of_parts" type="object">
+  Contains:
+  - `total`: Total number of parts that were expected
+  - `sent`: Number of parts successfully received (should equal `total`)
+</ResponseField>
+
+<ResponseField name="file_import_result" type="object">
+  Result of importing the file:
+  
+  <ResponseField name="file_import_result.type" type="string">
+    `"success"` or `"error"`
+  </ResponseField>
+  
+  <ResponseField name="file_import_result.imported_time" type="string">
+    ISO 8601 timestamp when the file was imported.
+  </ResponseField>
+  
+  <ResponseField name="file_import_result.success" type="object">
+    Empty object present when type is `"success"`.
+  </ResponseField>
+  
+  <ResponseField name="file_import_result.error" type="object">
+    Error details when type is `"error"`:
+    - `type`: Error category (`"validation_error"`, `"internal_system_error"`, `"download_error"`, `"upload_error"`)
+    - `code`: Short error code
+    - `message`: Human-readable error description
+    - `parameter`: Related parameter name, if applicable
+    - `status_code`: HTTP status code, if applicable
+  </ResponseField>
+</ResponseField>
+
+## Example
+
+### Complete multi-part upload
+
+After sending all parts of a large file:
+
+```typescript
+import fs from "fs"
+
+const CHUNK_SIZE = 20 * 1024 * 1024 // 20MB
+const fileBuffer = fs.readFileSync("./large-video.mp4")
+const totalParts = Math.ceil(fileBuffer.length / CHUNK_SIZE)
+
+// Step 1: Create the upload
+const fileUpload = await client.fileUploads.create({
+  mode: "multi_part",
+  filename: "large-video.mp4",
+  content_type: "video/mp4",
+  number_of_parts: totalParts
+})
+
+// Step 2: Send all parts
+for (let i = 0; i < totalParts; i++) {
+  const start = i * CHUNK_SIZE
+  const end = Math.min(start + CHUNK_SIZE, fileBuffer.length)
+  const chunk = fileBuffer.slice(start, end)
+  
+  await client.fileUploads.send({
+    file_upload_id: fileUpload.id,
+    file: { data: chunk },
+    part_number: String(i + 1)
+  })
+}
+
+// Step 3: Complete the upload
+const completed = await client.fileUploads.complete({
+  file_upload_id: fileUpload.id
+})
+
+if (completed.status === "uploaded") {
+  console.log("Upload successful!")
+  console.log(completed.file_import_result)
+} else {
+  console.error("Upload failed:", completed.file_import_result?.error)
+}
+```
+
+### Error handling
+
+Check for errors after completion:
+
+```typescript
+const result = await client.fileUploads.complete({
+  file_upload_id: fileUpload.id
+})
+
+if (result.file_import_result?.type === "error") {
+  const error = result.file_import_result.error
+  console.error(`Upload error (${error.type}): ${error.message}`)
+  
+  if (error.type === "validation_error") {
+    console.error(`Parameter: ${error.parameter}`)
+  }
+} else if (result.file_import_result?.type === "success") {
+  console.log("File imported at:", result.file_import_result.imported_time)
+}
+```
+
+### Verify all parts sent
+
+Before calling complete:
+
+```typescript
+// After sending all parts, verify count
+const uploadStatus = await client.fileUploads.retrieve({
+  file_upload_id: fileUpload.id
+})
+
+if (uploadStatus.number_of_parts?.sent === uploadStatus.number_of_parts?.total) {
+  // All parts sent, safe to complete
+  const result = await client.fileUploads.complete({
+    file_upload_id: fileUpload.id
+  })
+  console.log("Upload completed:", result.status)
+} else {
+  console.error(
+    `Missing parts: ${uploadStatus.number_of_parts?.sent} / ${uploadStatus.number_of_parts?.total}`
+  )
+}
+```
+
+## Notes
+
+- Only required for **multi-part** uploads (`mode: "multi_part"`)
+- Not needed for single-part uploads - they complete automatically after sending
+- Must be called after **all parts** have been sent via [send](/api/file-uploads/send)
+- The upload will fail if the number of parts sent doesn't match `number_of_parts` from create
+- Check `file_import_result` to verify the file was successfully imported
+
+## Related
+
+- [Create file upload](/api/file-uploads/create) - Initialize upload
+- [Send file upload](/api/file-uploads/send) - Upload file parts
+- [List file uploads](/api/file-uploads/list) - Track upload status

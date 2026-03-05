@@ -1,0 +1,403 @@
+---
+title: OAuth
+description: Implement OAuth 2.0 authentication for public Notion integrations
+---
+
+The Notion SDK supports OAuth 2.0 for public integrations, allowing users to authorize your application to access their Notion workspace. The SDK provides three OAuth methods on the `client.oauth` namespace:
+
+- `client.oauth.token()` - Exchange authorization codes for access tokens
+- `client.oauth.introspect()` - Validate and inspect tokens
+- `client.oauth.revoke()` - Revoke access tokens
+
+## OAuth Flow Overview
+
+1. **Redirect user** to Notion's authorization URL
+2. **User approves** your integration
+3. **Notion redirects back** with an authorization code
+4. **Exchange code** for access token using `oauth.token()`
+5. **Store tokens** securely
+6. **Use access token** to make API requests
+7. **Refresh token** when it expires
+
+## Setting Up OAuth
+
+### Prerequisites
+
+- Create a public integration at [notion.so/my-integrations](https://www.notion.so/my-integrations)
+- Configure OAuth redirect URLs
+- Note your `client_id` and `client_secret`
+
+### Environment Variables
+
+```bash
+NOTION_CLIENT_ID=your-client-id
+NOTION_CLIENT_SECRET=your-client-secret
+NOTION_REDIRECT_URI=https://yourapp.com/auth/callback
+```
+
+## Step 1: Authorization URL
+
+Redirect users to Notion's authorization URL:
+
+```typescript
+const authUrl = new URL("https://api.notion.com/v1/oauth/authorize")
+
+authUrl.searchParams.append("client_id", process.env.NOTION_CLIENT_ID!)
+authUrl.searchParams.append(
+  "redirect_uri",
+  process.env.NOTION_REDIRECT_URI!
+)
+authUrl.searchParams.append("response_type", "code")
+
+// Recommended: Use state parameter for CSRF protection
+authUrl.searchParams.append("state", generateRandomState())
+
+// Optional: Request specific permissions
+authUrl.searchParams.append("owner", "user") // or "workspace"
+
+// Redirect user to authUrl.toString()
+```
+
+## Step 2: Exchange Code for Token
+
+After the user authorizes, Notion redirects back with a `code` parameter. Exchange it for an access token using `oauth.token()`:
+
+### token() Method Signature
+
+```typescript
+client.oauth.token(
+  args: OauthTokenParameters & {
+    client_id: string
+    client_secret: string
+  }
+): Promise<OauthTokenResponse>
+```
+
+### Authorization Code Grant
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client()
+
+const tokenResponse = await notion.oauth.token({
+  grant_type: "authorization_code",
+  code: "received-auth-code",
+  redirect_uri: process.env.NOTION_REDIRECT_URI!,
+  client_id: process.env.NOTION_CLIENT_ID!,
+  client_secret: process.env.NOTION_CLIENT_SECRET!,
+})
+
+console.log("Access token:", tokenResponse.access_token)
+console.log("Workspace:", tokenResponse.workspace_name)
+console.log("Bot ID:", tokenResponse.bot_id)
+```
+
+### Token Response
+
+The `OauthTokenResponse` includes:
+
+```typescript
+type OauthTokenResponse = {
+  access_token: string // Use this to make API requests
+  token_type: "bearer"
+  refresh_token: string | null // For refreshing expired tokens
+  bot_id: string // ID of the bot user
+  workspace_id: string
+  workspace_name: string | null
+  workspace_icon: string | null
+  owner: {
+    type: "user" | "workspace"
+    user?: {
+      type: "person"
+      person: { email: string }
+      name: string | null
+      avatar_url: string | null
+      id: string
+      object: "user"
+    }
+    workspace?: true
+  }
+  duplicated_template_id: string | null
+  request_id?: string
+}
+```
+
+### Using the Access Token
+
+Once you have the access token, use it to create an authenticated client:
+
+```typescript
+const authedClient = new Client({
+  auth: tokenResponse.access_token,
+})
+
+const pages = await authedClient.search({
+  query: "meeting notes",
+})
+```
+
+## Step 3: Refresh Token
+
+When an access token expires, use the refresh token to get a new one:
+
+### Refresh Token Grant
+
+```typescript
+const refreshedToken = await notion.oauth.token({
+  grant_type: "refresh_token",
+  refresh_token: storedRefreshToken,
+  client_id: process.env.NOTION_CLIENT_ID!,
+  client_secret: process.env.NOTION_CLIENT_SECRET!,
+})
+
+// Store the new access_token and refresh_token
+console.log("New access token:", refreshedToken.access_token)
+```
+
+<Warning>
+Always store tokens securely. Never commit them to version control or expose them in client-side code.
+</Warning>
+
+## Introspecting Tokens
+
+Use `oauth.introspect()` to validate and inspect a token:
+
+### introspect() Method Signature
+
+```typescript
+client.oauth.introspect(
+  args: OauthIntrospectParameters & {
+    client_id: string
+    client_secret: string
+  }
+): Promise<OauthIntrospectResponse>
+```
+
+### Example
+
+```typescript
+const introspection = await notion.oauth.introspect({
+  token: accessToken,
+  client_id: process.env.NOTION_CLIENT_ID!,
+  client_secret: process.env.NOTION_CLIENT_SECRET!,
+})
+
+if (introspection.active) {
+  console.log("Token is valid")
+  console.log("Issued at:", new Date(introspection.iat! * 1000))
+  console.log("Scope:", introspection.scope)
+} else {
+  console.log("Token is invalid or expired")
+}
+```
+
+### Introspect Response
+
+```typescript
+type OauthIntrospectResponse = {
+  active: boolean // Whether the token is currently active
+  scope?: string // Scopes granted to the token
+  iat?: number // Issued at time (Unix timestamp)
+  request_id?: string
+}
+```
+
+## Revoking Tokens
+
+Revoke a token when a user disconnects your integration:
+
+### revoke() Method Signature
+
+```typescript
+client.oauth.revoke(
+  args: OauthRevokeParameters & {
+    client_id: string
+    client_secret: string
+  }
+): Promise<OauthRevokeResponse>
+```
+
+### Example
+
+```typescript
+await notion.oauth.revoke({
+  token: accessToken,
+  client_id: process.env.NOTION_CLIENT_ID!,
+  client_secret: process.env.NOTION_CLIENT_SECRET!,
+})
+
+console.log("Token revoked successfully")
+```
+
+### Revoke Response
+
+```typescript
+type OauthRevokeResponse = {
+  request_id?: string
+}
+```
+
+<Note>
+After revoking a token, it can no longer be used to make API requests. The user will need to re-authorize your integration.
+</Note>
+
+## Complete OAuth Example
+
+Here's a complete Express.js example:
+
+```typescript
+import express from "express"
+import { Client } from "@notionhq/client"
+
+const app = express()
+const notion = new Client()
+
+// Step 1: Redirect to Notion
+app.get("/auth/notion", (req, res) => {
+  const authUrl = new URL("https://api.notion.com/v1/oauth/authorize")
+  authUrl.searchParams.append("client_id", process.env.NOTION_CLIENT_ID!)
+  authUrl.searchParams.append(
+    "redirect_uri",
+    "http://localhost:3000/auth/callback"
+  )
+  authUrl.searchParams.append("response_type", "code")
+  authUrl.searchParams.append("owner", "user")
+
+  res.redirect(authUrl.toString())
+})
+
+// Step 2: Handle callback
+app.get("/auth/callback", async (req, res) => {
+  const { code } = req.query
+
+  if (!code) {
+    return res.status(400).send("No code provided")
+  }
+
+  try {
+    // Exchange code for token
+    const tokenResponse = await notion.oauth.token({
+      grant_type: "authorization_code",
+      code: code as string,
+      redirect_uri: "http://localhost:3000/auth/callback",
+      client_id: process.env.NOTION_CLIENT_ID!,
+      client_secret: process.env.NOTION_CLIENT_SECRET!,
+    })
+
+    // Store tokens securely (database, encrypted session, etc.)
+    // req.session.notionAccessToken = tokenResponse.access_token
+    // req.session.notionRefreshToken = tokenResponse.refresh_token
+
+    res.send(`
+      <h1>Success!</h1>
+      <p>Workspace: ${tokenResponse.workspace_name}</p>
+      <p>Bot ID: ${tokenResponse.bot_id}</p>
+    `)
+  } catch (error) {
+    console.error("OAuth error:", error)
+    res.status(500).send("Authentication failed")
+  }
+})
+
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000")
+})
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use state parameter for CSRF protection">
+    Always include a random `state` parameter in the authorization URL and verify it in the callback to prevent CSRF attacks:
+
+    ```typescript
+    // Generate and store state
+    const state = crypto.randomBytes(16).toString("hex")
+    req.session.oauthState = state
+
+    authUrl.searchParams.append("state", state)
+
+    // Verify in callback
+    if (req.query.state !== req.session.oauthState) {
+      throw new Error("Invalid state parameter")
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Store tokens securely">
+    - Never store tokens in localStorage or cookies accessible to JavaScript
+    - Use encrypted database storage
+    - Consider using environment variables for development only
+    - Rotate tokens regularly
+  </Accordion>
+
+  <Accordion title="Handle token expiration gracefully">
+    Implement automatic token refresh when API requests fail with authentication errors:
+
+    ```typescript
+    try {
+      const response = await client.pages.retrieve({ page_id: "id" })
+      return response
+    } catch (error) {
+      if (error.code === "unauthorized") {
+        // Refresh token and retry
+        await refreshAccessToken()
+        return await client.pages.retrieve({ page_id: "id" })
+      }
+      throw error
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Provide clear authorization UI">
+    - Explain what permissions your app needs
+    - Show which workspace will be connected
+    - Provide a way to disconnect/revoke access
+  </Accordion>
+</AccordionGroup>
+
+## Error Handling
+
+Handle OAuth errors appropriately:
+
+```typescript
+import { APIResponseError } from "@notionhq/client"
+
+try {
+  const tokenResponse = await notion.oauth.token({
+    grant_type: "authorization_code",
+    code: authCode,
+    client_id: process.env.NOTION_CLIENT_ID!,
+    client_secret: process.env.NOTION_CLIENT_SECRET!,
+  })
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    if (error.code === "unauthorized") {
+      console.error("Invalid client credentials")
+    } else if (error.code === "validation_error") {
+      console.error("Invalid authorization code or parameters")
+    }
+  }
+  throw error
+}
+```
+
+## Additional Resources
+
+<CardGroup cols={2}>
+  <Card
+    title="Notion OAuth Documentation"
+    icon="book"
+    href="https://developers.notion.com/docs/authorization"
+  >
+    Official Notion OAuth guide
+  </Card>
+  <Card
+    title="OAuth 2.0 Specification"
+    icon="file-contract"
+    href="https://oauth.net/2/"
+  >
+    Learn more about OAuth 2.0
+  </Card>
+</CardGroup>

@@ -1,0 +1,199 @@
+---
+title: "ID Extraction"
+description: "Extract Notion IDs from URLs and format raw IDs"
+---
+
+The Notion SDK provides utilities to extract properly formatted UUIDs from Notion URLs or raw ID strings.
+
+## extractNotionId
+
+Extracts a Notion ID from a Notion URL or returns the input if it's already a valid ID. This is the primary function that all other extraction helpers use internally.
+
+### Signature
+
+```typescript
+function extractNotionId(urlOrId: string): string | null
+```
+
+### Parameters
+
+- `urlOrId` - A Notion URL or ID string
+
+### Returns
+
+- The extracted UUID in standard format (with hyphens) or `null` if invalid
+
+### Features
+
+- Accepts URLs, compact IDs (32 hex chars), or formatted UUIDs
+- Prioritizes path IDs over query parameters to avoid extracting view IDs instead of database IDs
+- Returns IDs in standard UUID format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+- Case-insensitive
+
+### Examples
+
+```typescript
+import { extractNotionId } from "@notionhq/client"
+
+// Database URL with view ID - extracts database ID, not view ID
+const id1 = extractNotionId(
+  "https://notion.so/workspace/DB-abc123def456789012345678901234ab?v=viewid123"
+)
+// Returns: "abc123de-f456-7890-1234-5678901234ab" (database ID)
+
+// Already formatted UUID
+const id2 = extractNotionId("12345678-1234-1234-1234-123456789abc")
+// Returns: "12345678-1234-1234-1234-123456789abc"
+
+// Compact UUID (no hyphens)
+const id3 = extractNotionId("12345678123412341234123456789abc")
+// Returns: "12345678-1234-1234-1234-123456789abc"
+
+// Page URL
+const id4 = extractNotionId(
+  "https://www.notion.so/My-Page-Title-a1b2c3d4e5f6789012345678901234ab"
+)
+// Returns: "a1b2c3d4-e5f6-7890-1234-5678901234ab"
+
+// Invalid input
+const id5 = extractNotionId("not-a-valid-id")
+// Returns: null
+```
+
+## extractPageId
+
+Extracts a page ID from a Notion page URL. This is a convenience wrapper around `extractNotionId`.
+
+### Signature
+
+```typescript
+function extractPageId(pageUrl: string): string | null
+```
+
+### Example
+
+```typescript
+import { extractPageId } from "@notionhq/client"
+
+const pageId = extractPageId(
+  "https://www.notion.so/My-Page-a1b2c3d4e5f6789012345678901234ab"
+)
+// Returns: "a1b2c3d4-e5f6-7890-1234-5678901234ab"
+
+// Use with the SDK
+const page = await notion.pages.retrieve({ page_id: pageId })
+```
+
+## extractDatabaseId
+
+Extracts a database ID from a Notion database URL. This is a convenience wrapper around `extractNotionId`.
+
+### Signature
+
+```typescript
+function extractDatabaseId(databaseUrl: string): string | null
+```
+
+### Example
+
+```typescript
+import { extractDatabaseId } from "@notionhq/client"
+
+const databaseId = extractDatabaseId(
+  "https://www.notion.so/workspace/My-Database-abc123def456789012345678901234ab?v=viewid"
+)
+// Returns: "abc123de-f456-7890-1234-5678901234ab"
+
+// Use with the SDK
+const database = await notion.databases.retrieve({ database_id: databaseId })
+```
+
+## extractBlockId
+
+Extracts a block ID from a Notion URL with a block fragment. Looks for `#block-<id>` or `#<id>` patterns.
+
+### Signature
+
+```typescript
+function extractBlockId(urlWithBlock: string): string | null
+```
+
+### Example
+
+```typescript
+import { extractBlockId } from "@notionhq/client"
+
+// URL with block fragment
+const blockId1 = extractBlockId(
+  "https://www.notion.so/My-Page-a1b2c3d4#block-123456789012345678901234567890ab"
+)
+// Returns: "12345678-9012-3456-7890-1234567890ab"
+
+// URL with simple fragment
+const blockId2 = extractBlockId(
+  "https://www.notion.so/My-Page-a1b2c3d4#123456789012345678901234567890ab"
+)
+// Returns: "12345678-9012-3456-7890-1234567890ab"
+
+// Use with the SDK
+const block = await notion.blocks.retrieve({ block_id: blockId1 })
+```
+
+## Common Use Cases
+
+### Converting User-Provided URLs
+
+When users share Notion URLs, use these helpers to extract the ID:
+
+```typescript
+import { extractPageId } from "@notionhq/client"
+
+const userInput = "https://www.notion.so/My-Page-abc123..."
+const pageId = extractPageId(userInput)
+
+if (pageId) {
+  const page = await notion.pages.retrieve({ page_id: pageId })
+  console.log(page)
+} else {
+  console.error("Invalid Notion URL")
+}
+```
+
+### Handling Database URLs with View Parameters
+
+The extractors prioritize database IDs over view IDs:
+
+```typescript
+import { extractDatabaseId } from "@notionhq/client"
+
+// This URL contains both a database ID and a view ID
+const url = "https://notion.so/DB-abc123...?v=view456..."
+
+// Correctly extracts the database ID, not the view ID
+const databaseId = extractDatabaseId(url)
+
+const results = await notion.databases.query({ database_id: databaseId })
+```
+
+### Working with Multiple ID Formats
+
+```typescript
+import { extractNotionId } from "@notionhq/client"
+
+const inputs = [
+  "https://notion.so/page-abc123...",
+  "abc123def456789012345678901234ab",
+  "abc123de-f456-7890-1234-5678901234ab",
+]
+
+const ids = inputs.map(extractNotionId).filter(id => id !== null)
+console.log(ids) // All in standard UUID format
+```
+
+## Return Value
+
+All extraction functions return:
+- A string in standard UUID format (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) if successful
+- `null` if the input is invalid or doesn't contain a valid Notion ID
+
+Always check for `null` before using the extracted ID.

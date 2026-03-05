@@ -1,0 +1,186 @@
+---
+title: Client
+description: The main Notion API client class
+---
+
+The `Client` class is the main entry point for interacting with the Notion API. It provides namespaced access to all API endpoints and handles authentication, retries, and error handling.
+
+## Constructor
+
+```typescript
+new Client(options?: ClientOptions)
+```
+
+Creates a new Notion API client instance.
+
+<ParamField path="options" type="ClientOptions" optional>
+  Configuration options for the client. See [ClientOptions](/api/client-options) for details.
+</ParamField>
+
+### Example
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  logLevel: LogLevel.INFO,
+  timeoutMs: 30000,
+})
+```
+
+## Properties
+
+### blocks
+
+Namespace for block-related operations.
+
+```typescript
+client.blocks.retrieve(args: GetBlockParameters): Promise<GetBlockResponse>
+client.blocks.update(args: UpdateBlockParameters): Promise<UpdateBlockResponse>
+client.blocks.delete(args: DeleteBlockParameters): Promise<DeleteBlockResponse>
+client.blocks.children.append(args: AppendBlockChildrenParameters): Promise<AppendBlockChildrenResponse>
+client.blocks.children.list(args: ListBlockChildrenParameters): Promise<ListBlockChildrenResponse>
+```
+
+### pages
+
+Namespace for page-related operations.
+
+```typescript
+client.pages.create(args: CreatePageParameters): Promise<CreatePageResponse>
+client.pages.retrieve(args: GetPageParameters): Promise<GetPageResponse>
+client.pages.update(args: UpdatePageParameters): Promise<UpdatePageResponse>
+client.pages.move(args: MovePageParameters): Promise<MovePageResponse>
+client.pages.retrieveMarkdown(args: GetPageMarkdownParameters): Promise<GetPageMarkdownResponse>
+client.pages.updateMarkdown(args: UpdatePageMarkdownParameters): Promise<UpdatePageMarkdownResponse>
+client.pages.properties.retrieve(args: GetPagePropertyParameters): Promise<GetPagePropertyResponse>
+```
+
+### databases
+
+Namespace for database-related operations.
+
+```typescript
+client.databases.retrieve(args: GetDatabaseParameters): Promise<GetDatabaseResponse>
+client.databases.create(args: CreateDatabaseParameters): Promise<CreateDatabaseResponse>
+client.databases.update(args: UpdateDatabaseParameters): Promise<UpdateDatabaseResponse>
+```
+
+### dataSources
+
+Namespace for data source-related operations.
+
+```typescript
+client.dataSources.retrieve(args: GetDataSourceParameters): Promise<GetDataSourceResponse>
+client.dataSources.query(args: QueryDataSourceParameters): Promise<QueryDataSourceResponse>
+client.dataSources.create(args: CreateDataSourceParameters): Promise<CreateDataSourceResponse>
+client.dataSources.update(args: UpdateDataSourceParameters): Promise<UpdateDataSourceResponse>
+client.dataSources.listTemplates(args: ListDataSourceTemplatesParameters): Promise<ListDataSourceTemplatesResponse>
+```
+
+### users
+
+Namespace for user-related operations.
+
+```typescript
+client.users.retrieve(args: GetUserParameters): Promise<GetUserResponse>
+client.users.list(args: ListUsersParameters): Promise<ListUsersResponse>
+client.users.me(args: GetSelfParameters): Promise<GetSelfResponse>
+```
+
+### comments
+
+Namespace for comment-related operations.
+
+```typescript
+client.comments.create(args: CreateCommentParameters): Promise<CreateCommentResponse>
+client.comments.list(args: ListCommentsParameters): Promise<ListCommentsResponse>
+client.comments.retrieve(args: GetCommentParameters): Promise<GetCommentResponse>
+```
+
+### fileUploads
+
+Namespace for file upload operations.
+
+```typescript
+client.fileUploads.create(args: CreateFileUploadParameters): Promise<CreateFileUploadResponse>
+client.fileUploads.retrieve(args: GetFileUploadParameters): Promise<GetFileUploadResponse>
+client.fileUploads.list(args: ListFileUploadsParameters): Promise<ListFileUploadsResponse>
+client.fileUploads.send(args: SendFileUploadParameters): Promise<SendFileUploadResponse>
+client.fileUploads.complete(args: CompleteFileUploadParameters): Promise<CompleteFileUploadResponse>
+```
+
+### oauth
+
+Namespace for OAuth operations.
+
+```typescript
+client.oauth.token(args: OauthTokenParameters & { client_id: string; client_secret: string }): Promise<OauthTokenResponse>
+client.oauth.introspect(args: OauthIntrospectParameters & { client_id: string; client_secret: string }): Promise<OauthIntrospectResponse>
+client.oauth.revoke(args: OauthRevokeParameters & { client_id: string; client_secret: string }): Promise<OauthRevokeResponse>
+```
+
+## Methods
+
+### search
+
+Searches across all pages and databases in the workspace.
+
+```typescript
+client.search(args: SearchParameters): Promise<SearchResponse>
+```
+
+<ParamField path="args" type="SearchParameters" required>
+  Search parameters including query text and filters.
+</ParamField>
+
+### request
+
+Sends a raw HTTP request to the Notion API. This is a low-level method used internally by all endpoint methods.
+
+```typescript
+client.request<ResponseBody>(args: RequestParameters): Promise<ResponseBody>
+```
+
+<ParamField path="args" type="RequestParameters" required>
+  Request configuration including path, method, query parameters, and body.
+</ParamField>
+
+<ParamField path="args.path" type="string" required>
+  The API endpoint path (without the base URL or version prefix).
+</ParamField>
+
+<ParamField path="args.method" type="'get' | 'post' | 'patch' | 'delete'" required>
+  The HTTP method to use.
+</ParamField>
+
+<ParamField path="args.query" type="Record<string, string | number | boolean | string[]>" optional>
+  Query parameters to append to the URL.
+</ParamField>
+
+<ParamField path="args.body" type="Record<string, unknown>" optional>
+  Request body to send as JSON.
+</ParamField>
+
+<ParamField path="args.formDataParams" type="Record<string, string | FileParam>" optional>
+  Form data parameters for file uploads.
+</ParamField>
+
+<ParamField path="args.headers" type="Record<string, string>" optional>
+  Additional headers to include in the request.
+</ParamField>
+
+<ParamField path="args.auth" type="string | { client_id: string; client_secret: string }" optional>
+  Override the client-level authentication for this request.
+</ParamField>
+
+## Static Properties
+
+### defaultNotionVersion
+
+The default Notion API version used by the client.
+
+```typescript
+Client.defaultNotionVersion // "2025-09-03"
+```

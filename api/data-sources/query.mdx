@@ -1,0 +1,245 @@
+---
+title: 'dataSources.query'
+description: 'Query pages and child data sources from a data source'
+---
+
+## Method
+
+```typescript
+client.dataSources.query(parameters: QueryDataSourceParameters): Promise<QueryDataSourceResponse>
+```
+
+Queries pages and data sources that are children of a data source. Supports filtering, sorting, and pagination.
+
+## Parameters
+
+<ParamField path="data_source_id" type="string" required>
+  The ID of the data source to query (with or without dashes)
+</ParamField>
+
+<ParamField path="filter" type="PropertyFilter | TimestampFilter | { and: Filter[] } | { or: Filter[] }">
+  Filter conditions to apply to the query. Can be a single filter, or a compound filter using `and` or `or` operators.
+  
+  Supports filtering by:
+  - Property values (text, number, checkbox, select, date, etc.)
+  - Timestamps (`created_time`, `last_edited_time`)
+</ParamField>
+
+<ParamField path="sorts" type="Array<PropertySort | TimestampSort>">
+  Sort criteria for the results.
+  
+  Property sort:
+  ```typescript
+  {
+    property: "PropertyName",
+    direction: "ascending" | "descending"
+  }
+  ```
+  
+  Timestamp sort:
+  ```typescript
+  {
+    timestamp: "created_time" | "last_edited_time",
+    direction: "ascending" | "descending"
+  }
+  ```
+</ParamField>
+
+<ParamField path="start_cursor" type="string">
+  Pagination cursor returned from a previous query. Used to fetch the next page of results.
+</ParamField>
+
+<ParamField path="page_size" type="number">
+  Number of results to return per page. Maximum is 100 (default).
+</ParamField>
+
+<ParamField path="filter_properties" type="string[]">
+  Array of property IDs to include in the response. Only these properties will be returned for each page.
+</ParamField>
+
+<ParamField path="archived" type="boolean">
+  Filter by archived status. If `true`, only archived pages are returned. If `false`, only non-archived pages.
+</ParamField>
+
+<ParamField path="in_trash" type="boolean">
+  Filter by trash status. If `true`, only trashed pages are returned. If `false`, only non-trashed pages.
+</ParamField>
+
+<ParamField path="result_type" type="'page' | 'data_source'">
+  Filter results to only include pages or data sources. Regular databases only support page children. The default behavior returns both pages and data sources for wikis.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. Overrides the client-level auth if provided.
+</ParamField>
+
+## Response
+
+Returns a paginated list of pages and/or data sources.
+
+<ResponseField name="object" type="string">
+  Always `"list"`
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Always `"page_or_data_source"`
+</ResponseField>
+
+<ResponseField name="results" type="Array<PageObjectResponse | DataSourceObjectResponse>">
+  Array of page and/or data source objects matching the query
+</ResponseField>
+
+<ResponseField name="next_cursor" type="string | null">
+  Cursor for the next page of results. `null` if there are no more results.
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more results available
+</ResponseField>
+
+## Examples
+
+### Query all pages
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_API_KEY })
+
+const response = await notion.dataSources.query({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+})
+
+console.log(`Found ${response.results.length} pages`)
+for (const page of response.results) {
+  console.log(`- ${page.id}`)
+}
+```
+
+### Filter by property value
+
+```typescript
+const response = await notion.dataSources.query({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  filter: {
+    property: "Status",
+    select: {
+      equals: "Active"
+    }
+  }
+})
+```
+
+### Sort by property
+
+```typescript
+const response = await notion.dataSources.query({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  sorts: [
+    {
+      property: "Name",
+      direction: "ascending"
+    }
+  ]
+})
+```
+
+### Complex filter with AND/OR
+
+```typescript
+const response = await notion.dataSources.query({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  filter: {
+    and: [
+      {
+        property: "Status",
+        select: {
+          equals: "Active"
+        }
+      },
+      {
+        or: [
+          {
+            property: "Priority",
+            select: {
+              equals: "High"
+            }
+          },
+          {
+            property: "Priority",
+            select: {
+              equals: "Medium"
+            }
+          }
+        ]
+      }
+    ]
+  }
+})
+```
+
+### Paginate through results
+
+```typescript
+import { collectPaginatedAPI } from "@notionhq/client"
+
+// Collect all results automatically
+const allPages = await collectPaginatedAPI(
+  notion.dataSources.query,
+  {
+    data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  }
+)
+
+console.log(`Total pages: ${allPages.length}`)
+```
+
+### Manual pagination
+
+```typescript
+let cursor = undefined
+let hasMore = true
+
+while (hasMore) {
+  const response = await notion.dataSources.query({
+    data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    start_cursor: cursor,
+    page_size: 50
+  })
+  
+  // Process results
+  for (const page of response.results) {
+    console.log(page.id)
+  }
+  
+  cursor = response.next_cursor
+  hasMore = response.has_more
+}
+```
+
+### Filter by timestamp
+
+```typescript
+const response = await notion.dataSources.query({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  filter: {
+    timestamp: "last_edited_time",
+    last_edited_time: {
+      past_week: {}
+    }
+  },
+  sorts: [
+    {
+      timestamp: "last_edited_time",
+      direction: "descending"
+    }
+  ]
+})
+```
+
+## Related Methods
+
+- [dataSources.retrieve](/api/data-sources/retrieve) - Retrieve a data source by ID
+- [dataSources.create](/api/data-sources/create) - Create a new data source
+- [dataSources.update](/api/data-sources/update) - Update a data source
+- [collectPaginatedAPI](/api/helpers/pagination) - Helper to collect all paginated results

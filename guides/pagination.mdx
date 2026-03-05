@@ -1,0 +1,203 @@
+---
+title: Pagination
+description: Learn how to efficiently paginate through large result sets using helper functions
+---
+
+The Notion SDK provides utilities to handle paginated API responses efficiently. When working with endpoints that return lists of items (like blocks, pages, or users), you can use pagination helpers to iterate through results without loading everything into memory at once.
+
+## Pagination Helpers
+
+The SDK exports two main pagination utilities from the `helpers` module:
+
+- `iteratePaginatedAPI()` - Returns an async iterator for memory-efficient streaming
+- `collectPaginatedAPI()` - Collects all results into an array
+
+## Using iteratePaginatedAPI
+
+The `iteratePaginatedAPI()` function returns an async iterator that yields items one at a time. This is ideal for processing large datasets without loading everything into memory.
+
+### Function Signature
+
+```typescript
+function iteratePaginatedAPI<Args extends PaginatedArgs, Item>(
+  listFn: (args: Args) => Promise<PaginatedList<Item>>,
+  firstPageArgs: Args
+): AsyncIterableIterator<Item>
+```
+
+### Parameters
+
+- `listFn` - A bound function on the Notion client that represents a paginated API (e.g., `notion.blocks.children.list`)
+- `firstPageArgs` - Arguments to pass to the API on each call. The `next_cursor` is automatically managed.
+
+### Example: Iterate Through Block Children
+
+```typescript
+import { Client } from "@notionhq/client"
+import { iteratePaginatedAPI } from "@notionhq/client/build/src/helpers"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+const parentBlockId = "your-block-id"
+
+for await (const block of iteratePaginatedAPI(notion.blocks.children.list, {
+  block_id: parentBlockId,
+})) {
+  console.log(block.id, block.type)
+  // Process each block as it's fetched
+}
+```
+
+### Example: Iterate Through Database Pages
+
+```typescript
+for await (const page of iteratePaginatedAPI(notion.databases.query, {
+  database_id: "your-database-id",
+})) {
+  console.log(page.id)
+  // Process each page individually
+}
+```
+
+<Note>
+The iterator automatically handles the `start_cursor` and `next_cursor` for you. Each iteration fetches the next page of results as needed.
+</Note>
+
+## Using collectPaginatedAPI
+
+The `collectPaginatedAPI()` function fetches all pages and returns a complete array. This is convenient for smaller datasets where you need the full collection.
+
+### Function Signature
+
+```typescript
+function collectPaginatedAPI<Args extends PaginatedArgs, Item>(
+  listFn: (args: Args) => Promise<PaginatedList<Item>>,
+  firstPageArgs: Args
+): Promise<Item[]>
+```
+
+### Parameters
+
+Same as `iteratePaginatedAPI()` - the function signature is identical.
+
+### Example: Collect All Blocks
+
+```typescript
+import { collectPaginatedAPI } from "@notionhq/client/build/src/helpers"
+
+const blocks = await collectPaginatedAPI(notion.blocks.children.list, {
+  block_id: parentBlockId,
+})
+
+console.log(`Found ${blocks.length} blocks`)
+blocks.forEach(block => {
+  console.log(block.id, block.type)
+})
+```
+
+### Example: Collect All Users
+
+```typescript
+const users = await collectPaginatedAPI(notion.users.list, {})
+
+console.log(`Workspace has ${users.length} users`)
+```
+
+<Warning>
+Use `collectPaginatedAPI()` with caution on large datasets, as it loads all results into memory. For large collections, prefer `iteratePaginatedAPI()`.
+</Warning>
+
+## Manual Pagination
+
+If you need more control over pagination, you can manually handle the cursor:
+
+```typescript
+let cursor: string | undefined = undefined
+let hasMore = true
+
+while (hasMore) {
+  const response = await notion.blocks.children.list({
+    block_id: parentBlockId,
+    start_cursor: cursor,
+    page_size: 100,
+  })
+
+  response.results.forEach(block => {
+    console.log(block.id)
+  })
+
+  cursor = response.next_cursor ?? undefined
+  hasMore = response.has_more
+}
+```
+
+## Pagination with Filters and Sorts
+
+When querying databases with filters or sorts, the pagination helpers work seamlessly:
+
+```typescript
+for await (const page of iteratePaginatedAPI(notion.databases.query, {
+  database_id: "your-database-id",
+  filter: {
+    property: "Status",
+    status: {
+      equals: "Done",
+    },
+  },
+  sorts: [
+    {
+      property: "Created",
+      direction: "descending",
+    },
+  ],
+})) {
+  console.log(page.id)
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use iteratePaginatedAPI for large datasets">
+    When processing many items, use `iteratePaginatedAPI()` to avoid loading everything into memory. This is especially important for databases with thousands of pages.
+  </Accordion>
+
+  <Accordion title="Use collectPaginatedAPI for small collections">
+    For convenience with smaller datasets (< 1000 items), `collectPaginatedAPI()` is simpler and provides an array you can easily manipulate.
+  </Accordion>
+
+  <Accordion title="Respect rate limits">
+    The Notion API has rate limits. The SDK automatically retries rate-limited requests, but avoid making unnecessary parallel pagination requests.
+  </Accordion>
+
+  <Accordion title="Handle errors gracefully">
+    Wrap pagination code in try-catch blocks to handle network errors or API issues:
+    
+    ```typescript
+    try {
+      for await (const block of iteratePaginatedAPI(notion.blocks.children.list, {
+        block_id: parentBlockId,
+      })) {
+        // Process block
+      }
+    } catch (error) {
+      console.error("Failed to fetch blocks:", error)
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Type Safety
+
+Both pagination helpers are fully typed. TypeScript will infer the correct item type based on the list function you provide:
+
+```typescript
+// TypeScript knows `block` is BlockObjectResponse | PartialBlockObjectResponse
+for await (const block of iteratePaginatedAPI(notion.blocks.children.list, {
+  block_id: parentBlockId,
+})) {
+  // Full autocomplete and type checking
+}
+
+// TypeScript knows `users` is Array<UserObjectResponse | PartialUserObjectResponse>
+const users = await collectPaginatedAPI(notion.users.list, {})
+```

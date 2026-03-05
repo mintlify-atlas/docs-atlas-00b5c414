@@ -1,0 +1,183 @@
+---
+title: Retrieve a Block
+description: Retrieve a single block object by its ID
+---
+
+Retrieves a Block object using the ID specified in the request path. Blocks are returned with their content and metadata.
+
+## Method Signature
+
+```typescript
+client.blocks.retrieve(args: GetBlockParameters): Promise<GetBlockResponse>
+```
+
+Source: [Client.ts:581-592](/home/daytona/workspace/source/src/Client.ts#L581-L592)
+
+## Parameters
+
+<ParamField path="block_id" type="string" required>
+  The ID of the block to retrieve. Must be a valid Notion block ID.
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Optional authentication token to override the client-level auth. Use this to make requests on behalf of specific integrations.
+</ParamField>
+
+## Response
+
+Returns a `BlockObjectResponse` or `PartialBlockObjectResponse` representing the requested block.
+
+<ResponseField name="object" type="string">
+  Always `"block"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The unique identifier of the block
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  The type of block (e.g., `"paragraph"`, `"heading_1"`, `"code"`, etc.)
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  ISO 8601 timestamp when the block was created
+</ResponseField>
+
+<ResponseField name="created_by" type="PartialUserObjectResponse">
+  User who created the block
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the block was last edited
+</ResponseField>
+
+<ResponseField name="last_edited_by" type="PartialUserObjectResponse">
+  User who last edited the block
+</ResponseField>
+
+<ResponseField name="has_children" type="boolean">
+  Whether the block has child blocks
+</ResponseField>
+
+<ResponseField name="archived" type="boolean">
+  Whether the block is archived
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  Whether the block is in the trash
+</ResponseField>
+
+<ResponseField name="parent" type="ParentForBlockBasedObjectResponse">
+  The parent of the block (page, block, or workspace)
+</ResponseField>
+
+<ResponseField name="[type]" type="object">
+  Type-specific content. For example, a `paragraph` block has a `paragraph` property containing its `rich_text` content.
+</ResponseField>
+
+## Examples
+
+### Retrieve a Paragraph Block
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+const block = await notion.blocks.retrieve({
+  block_id: "your-block-id",
+})
+
+console.log(block.type) // "paragraph"
+if (block.type === "paragraph") {
+  console.log(block.paragraph.rich_text)
+}
+```
+
+### Retrieve a Code Block
+
+```typescript
+const codeBlock = await notion.blocks.retrieve({
+  block_id: "code-block-id",
+})
+
+if (codeBlock.type === "code") {
+  console.log("Language:", codeBlock.code.language)
+  console.log("Code:", codeBlock.code.rich_text)
+  console.log("Caption:", codeBlock.code.caption)
+}
+```
+
+### Retrieve with Custom Auth
+
+```typescript
+// Override the client's auth token for this request
+const block = await notion.blocks.retrieve({
+  block_id: "your-block-id",
+  auth: "secret_custom_token",
+})
+```
+
+### Check if Block Has Children
+
+```typescript
+const block = await notion.blocks.retrieve({
+  block_id: "your-block-id",
+})
+
+if (block.has_children) {
+  console.log("This block has child blocks")
+  // You can fetch children using blocks.children.list()
+}
+```
+
+## Type Guards
+
+Use the `isFullBlock()` helper to check if a block is fully populated:
+
+```typescript
+import { isFullBlock } from "@notionhq/client"
+
+const block = await notion.blocks.retrieve({
+  block_id: "your-block-id",
+})
+
+if (isFullBlock(block)) {
+  // TypeScript knows this is a full BlockObjectResponse
+  console.log(block.created_time)
+  console.log(block.last_edited_time)
+}
+```
+
+## Error Handling
+
+```typescript
+import { APIResponseError } from "@notionhq/client"
+
+try {
+  const block = await notion.blocks.retrieve({
+    block_id: "your-block-id",
+  })
+  console.log(block)
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    switch (error.code) {
+      case "object_not_found":
+        console.error("Block not found")
+        break
+      case "unauthorized":
+        console.error("Not authorized to access this block")
+        break
+      default:
+        console.error("API error:", error.message)
+    }
+  }
+}
+```
+
+## Related
+
+- [Update a Block](/api/blocks/update)
+- [Delete a Block](/api/blocks/delete)
+- [List Block Children](/api/blocks/children)
+- [Type Guards Guide](/guides/type-guards)

@@ -1,0 +1,449 @@
+---
+title: Block Children
+description: List and append child blocks to create nested content structures
+---
+
+The `blocks.children` namespace provides methods to work with child blocks - blocks nested inside other blocks or pages.
+
+## Methods
+
+- `list()` - Retrieve a list of child blocks
+- `append()` - Add new child blocks to a parent block or page
+
+---
+
+## List Block Children
+
+Retrieves a paginated list of child blocks for a given parent block or page.
+
+### Method Signature
+
+```typescript
+client.blocks.children.list(args: ListBlockChildrenParameters): Promise<ListBlockChildrenResponse>
+```
+
+Source: [Client.ts:645-656](/home/daytona/workspace/source/src/Client.ts#L645-L656)
+
+### Parameters
+
+<ParamField path="block_id" type="string" required>
+  The ID of the parent block or page whose children you want to retrieve
+</ParamField>
+
+<ParamField path="start_cursor" type="string">
+  Pagination cursor for the next page of results. If provided, the API returns results starting from this cursor.
+</ParamField>
+
+<ParamField path="page_size" type="number">
+  Number of items to return per page. Maximum is 100 (default).
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Optional authentication token to override the client-level auth
+</ParamField>
+
+### Response
+
+Returns a paginated list of blocks.
+
+<ResponseField name="object" type="string">
+  Always `"list"`
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Always `"block"`
+</ResponseField>
+
+<ResponseField name="results" type="Array<BlockObjectResponse>">
+  Array of child block objects
+</ResponseField>
+
+<ResponseField name="next_cursor" type="string | null">
+  Cursor for the next page of results, or `null` if there are no more results
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Whether there are more results available
+</ResponseField>
+
+### Examples
+
+#### List All Children
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+const response = await notion.blocks.children.list({
+  block_id: "parent-block-id",
+})
+
+console.log(`Found ${response.results.length} child blocks`)
+response.results.forEach(block => {
+  console.log(`- ${block.type} (${block.id})`)
+})
+```
+
+#### Paginate Through Children
+
+```typescript
+let cursor: string | undefined = undefined
+const allBlocks: BlockObjectResponse[] = []
+
+do {
+  const response = await notion.blocks.children.list({
+    block_id: "parent-block-id",
+    start_cursor: cursor,
+    page_size: 50,
+  })
+
+  allBlocks.push(...response.results)
+  cursor = response.next_cursor ?? undefined
+} while (cursor)
+
+console.log(`Total blocks: ${allBlocks.length}`)
+```
+
+#### Use Pagination Helper
+
+```typescript
+import { iteratePaginatedAPI } from "@notionhq/client/build/src/helpers"
+
+for await (const block of iteratePaginatedAPI(notion.blocks.children.list, {
+  block_id: "parent-block-id",
+})) {
+  console.log(block.type, block.id)
+}
+```
+
+#### Filter Children by Type
+
+```typescript
+const response = await notion.blocks.children.list({
+  block_id: "parent-block-id",
+})
+
+const paragraphs = response.results.filter(block => block.type === "paragraph")
+const headings = response.results.filter(block => 
+  block.type === "heading_1" ||
+  block.type === "heading_2" ||
+  block.type === "heading_3"
+)
+
+console.log(`${paragraphs.length} paragraphs, ${headings.length} headings`)
+```
+
+---
+
+## Append Block Children
+
+Adds new child blocks to a parent block or page. You can append multiple blocks in a single request.
+
+### Method Signature
+
+```typescript
+client.blocks.children.append(args: AppendBlockChildrenParameters): Promise<AppendBlockChildrenResponse>
+```
+
+Source: [Client.ts:629-640](/home/daytona/workspace/source/src/Client.ts#L629-L640)
+
+### Parameters
+
+<ParamField path="block_id" type="string" required>
+  The ID of the parent block or page to append children to
+</ParamField>
+
+<ParamField path="children" type="Array<BlockObjectRequest>" required>
+  Array of block objects to append. Each block must include a `type` and type-specific content.
+</ParamField>
+
+<ParamField path="after" type="string">
+  Deprecated. Use `position` instead. Block ID to insert after.
+</ParamField>
+
+<ParamField path="position" type="ContentPositionSchema">
+  Position to insert the blocks:
+  - `{ type: "start" }` - Insert at the beginning
+  - `{ type: "end" }` - Insert at the end (default)
+  - `{ type: "after_block", after_block: { id: "block-id" } }` - Insert after a specific block
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Optional authentication token to override the client-level auth
+</ParamField>
+
+### Response
+
+Returns a list containing the newly created blocks.
+
+<ResponseField name="object" type="string">
+  Always `"list"`
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Always `"block"`
+</ResponseField>
+
+<ResponseField name="results" type="Array<BlockObjectResponse>">
+  Array of newly created block objects with IDs assigned
+</ResponseField>
+
+<ResponseField name="next_cursor" type="string | null">
+  Always `null` for append operations
+</ResponseField>
+
+<ResponseField name="has_more" type="boolean">
+  Always `false` for append operations
+</ResponseField>
+
+### Examples
+
+#### Append a Single Paragraph
+
+```typescript
+const response = await notion.blocks.children.append({
+  block_id: "parent-page-id",
+  children: [
+    {
+      object: "block",
+      type: "paragraph",
+      paragraph: {
+        rich_text: [
+          {
+            type: "text",
+            text: {
+              content: "This is a new paragraph",
+            },
+          },
+        ],
+      },
+    },
+  ],
+})
+
+console.log("Created block:", response.results[0].id)
+```
+
+#### Append Multiple Blocks
+
+```typescript
+const response = await notion.blocks.children.append({
+  block_id: "parent-page-id",
+  children: [
+    {
+      type: "heading_2",
+      heading_2: {
+        rich_text: [{ type: "text", text: { content: "Section Title" } }],
+      },
+    },
+    {
+      type: "paragraph",
+      paragraph: {
+        rich_text: [{ type: "text", text: { content: "Section content" } }],
+      },
+    },
+    {
+      type: "bulleted_list_item",
+      bulleted_list_item: {
+        rich_text: [{ type: "text", text: { content: "First item" } }],
+      },
+    },
+  ],
+})
+
+console.log(`Added ${response.results.length} blocks`)
+```
+
+#### Append a Code Block
+
+```typescript
+await notion.blocks.children.append({
+  block_id: "parent-page-id",
+  children: [
+    {
+      type: "code",
+      code: {
+        rich_text: [
+          {
+            type: "text",
+            text: {
+              content: 'console.log("Hello, World!")\nconsole.log("Another line")',
+            },
+          },
+        ],
+        language: "javascript",
+        caption: [
+          {
+            type: "text",
+            text: {
+              content: "Example JavaScript code",
+            },
+          },
+        ],
+      },
+    },
+  ],
+})
+```
+
+#### Append To-Do Items
+
+```typescript
+const todos = [
+  "Review documentation",
+  "Write tests",
+  "Deploy to production",
+]
+
+await notion.blocks.children.append({
+  block_id: "parent-page-id",
+  children: todos.map(text => ({
+    type: "to_do",
+    to_do: {
+      rich_text: [{ type: "text", text: { content: text } }],
+      checked: false,
+    },
+  })),
+})
+```
+
+#### Append with Nested Children
+
+```typescript
+await notion.blocks.children.append({
+  block_id: "parent-page-id",
+  children: [
+    {
+      type: "toggle",
+      toggle: {
+        rich_text: [{ type: "text", text: { content: "Click to expand" } }],
+        children: [
+          {
+            type: "paragraph",
+            paragraph: {
+              rich_text: [{ type: "text", text: { content: "Hidden content" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+})
+```
+
+#### Insert at Specific Position
+
+```typescript
+// Insert at the beginning
+await notion.blocks.children.append({
+  block_id: "parent-page-id",
+  children: [
+    {
+      type: "paragraph",
+      paragraph: {
+        rich_text: [{ type: "text", text: { content: "First paragraph" } }],
+      },
+    },
+  ],
+  position: { type: "start" },
+})
+
+// Insert after a specific block
+await notion.blocks.children.append({
+  block_id: "parent-page-id",
+  children: [
+    {
+      type: "paragraph",
+      paragraph: {
+        rich_text: [{ type: "text", text: { content: "Inserted content" } }],
+      },
+    },
+  ],
+  position: {
+    type: "after_block",
+    after_block: { id: "existing-block-id" },
+  },
+})
+```
+
+#### Append Callout with Emoji
+
+```typescript
+await notion.blocks.children.append({
+  block_id: "parent-page-id",
+  children: [
+    {
+      type: "callout",
+      callout: {
+        rich_text: [
+          {
+            type: "text",
+            text: {
+              content: "Important information!",
+            },
+          },
+        ],
+        icon: {
+          type: "emoji",
+          emoji: "⚠️",
+        },
+        color: "yellow_background",
+      },
+    },
+  ],
+})
+```
+
+## Limitations
+
+<Warning>
+- Maximum of 100 blocks can be appended in a single request
+- Nested children can only be one level deep (blocks with `children` property cannot themselves have children in the request)
+- Some block types cannot have children (e.g., dividers, images)
+</Warning>
+
+## Error Handling
+
+```typescript
+import { APIResponseError } from "@notionhq/client"
+
+try {
+  const response = await notion.blocks.children.append({
+    block_id: "parent-id",
+    children: [
+      {
+        type: "paragraph",
+        paragraph: {
+          rich_text: [{ type: "text", text: { content: "Content" } }],
+        },
+      },
+    ],
+  })
+  console.log("Blocks appended successfully")
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    switch (error.code) {
+      case "object_not_found":
+        console.error("Parent block/page not found")
+        break
+      case "validation_error":
+        console.error("Invalid block structure:", error.message)
+        break
+      case "unauthorized":
+        console.error("Not authorized to append to this block")
+        break
+      default:
+        console.error("API error:", error.code, error.message)
+    }
+  }
+}
+```
+
+## Related
+
+- [Retrieve a Block](/api/blocks/retrieve)
+- [Update a Block](/api/blocks/update)
+- [Delete a Block](/api/blocks/delete)
+- [Pagination Guide](/guides/pagination)
+- [Block Types Reference](https://developers.notion.com/reference/block)

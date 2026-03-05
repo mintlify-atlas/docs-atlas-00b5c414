@@ -1,0 +1,377 @@
+---
+title: Type Guards
+description: Use type guards to safely narrow response types and access full object properties
+---
+
+Notion API responses often include partial objects when the full object wasn't requested or isn't available. The SDK provides type guard functions to help you safely distinguish between full and partial responses.
+
+## Why Type Guards?
+
+Many Notion endpoints return union types like `PageObjectResponse | PartialPageObjectResponse`. Type guards let you:
+
+- Check if a response contains full details
+- Safely access properties that only exist on full objects
+- Get proper TypeScript type narrowing
+
+## Available Type Guards
+
+All type guards are exported from the main package:
+
+```typescript
+import {
+  isFullPage,
+  isFullBlock,
+  isFullDataSource,
+  isFullDatabase,
+  isFullUser,
+  isFullComment,
+  isFullPageOrDataSource,
+} from "@notionhq/client/build/src/helpers"
+```
+
+## Page Type Guards
+
+### isFullPage
+
+Checks if a response is a full `PageObjectResponse`.
+
+```typescript
+function isFullPage(
+  response: ObjectResponse
+): response is PageObjectResponse
+```
+
+**Implementation:** Returns `true` if `response.object === "page"` and has a `url` property.
+
+**Example:**
+
+```typescript src/helpers.ts:186-189
+const response = await notion.pages.retrieve({ page_id: "page-id" })
+
+if (isFullPage(response)) {
+  // TypeScript knows this is PageObjectResponse
+  console.log(response.url)
+  console.log(response.properties)
+  console.log(response.created_time)
+} else {
+  // This is PartialPageObjectResponse
+  console.log("Only have basic page info")
+}
+```
+
+## Block Type Guards
+
+### isFullBlock
+
+Checks if a response is a full `BlockObjectResponse`.
+
+```typescript
+function isFullBlock(
+  response: ObjectResponse
+): response is BlockObjectResponse
+```
+
+**Implementation:** Returns `true` if `response.object === "block"` and has a `type` property.
+
+**Example:**
+
+```typescript src/helpers.ts:176-180
+const blocks = await notion.blocks.children.list({ block_id: "block-id" })
+
+for (const block of blocks.results) {
+  if (isFullBlock(block)) {
+    console.log(block.type) // "paragraph", "heading_1", etc.
+    console.log(block.created_time)
+    console.log(block.has_children)
+  }
+}
+```
+
+## Data Source Type Guards
+
+### isFullDataSource
+
+Checks if a response is a full `DataSourceObjectResponse`.
+
+```typescript
+function isFullDataSource(
+  response: ObjectResponse
+): response is DataSourceObjectResponse
+```
+
+**Implementation:** Returns `true` if `response.object === "data_source"`.
+
+**Example:**
+
+```typescript src/helpers.ts:194-198
+const response = await notion.dataSources.retrieve({
+  data_source_id: "data-source-id",
+})
+
+if (isFullDataSource(response)) {
+  console.log(response.id)
+  console.log(response.created_time)
+}
+```
+
+### isFullPageOrDataSource
+
+Checks if a response is either a full `PageObjectResponse` or `DataSourceObjectResponse`. Useful when working with search or query results.
+
+```typescript
+function isFullPageOrDataSource(
+  response: ObjectResponse
+): response is DataSourceObjectResponse | PageObjectResponse
+```
+
+**Implementation:** Checks for full data source first, otherwise checks for full page.
+
+**Example:**
+
+```typescript src/helpers.ts:216-224
+const searchResults = await notion.search({
+  query: "meeting notes",
+})
+
+for (const result of searchResults.results) {
+  if (isFullPageOrDataSource(result)) {
+    console.log(result.id)
+    if (result.object === "page") {
+      console.log("Page URL:", result.url)
+    } else {
+      console.log("Data source ID:", result.id)
+    }
+  }
+}
+```
+
+## Database Type Guards
+
+### isFullDatabase
+
+Checks if a response is a full `DatabaseObjectResponse`.
+
+```typescript
+function isFullDatabase(
+  response: ObjectResponse
+): response is DatabaseObjectResponse
+```
+
+**Implementation:** Returns `true` if `response.object === "database"`.
+
+**Example:**
+
+```typescript src/helpers.ts:201-205
+const response = await notion.databases.retrieve({
+  database_id: "database-id",
+})
+
+if (isFullDatabase(response)) {
+  console.log(response.title)
+  console.log(response.properties)
+}
+```
+
+## User Type Guards
+
+### isFullUser
+
+Checks if a response is a full `UserObjectResponse`.
+
+```typescript
+function isFullUser(
+  response: UserObjectResponse | PartialUserObjectResponse
+): response is UserObjectResponse
+```
+
+**Implementation:** Returns `true` if the response has a `type` property.
+
+**Example:**
+
+```typescript src/helpers.ts:229-233
+const users = await notion.users.list({})
+
+for (const user of users.results) {
+  if (isFullUser(user)) {
+    console.log(user.type) // "person" or "bot"
+    console.log(user.name)
+
+    if (user.type === "person") {
+      console.log(user.person.email)
+    }
+  }
+}
+```
+
+## Comment Type Guards
+
+### isFullComment
+
+Checks if a response is a full `CommentObjectResponse`.
+
+```typescript
+function isFullComment(
+  response: CommentObjectResponse | PartialCommentObjectResponse
+): response is CommentObjectResponse
+```
+
+**Implementation:** Returns `true` if the response has a `created_by` property.
+
+**Example:**
+
+```typescript src/helpers.ts:237-242
+const comments = await notion.comments.list({
+  block_id: "block-id",
+})
+
+for (const comment of comments.results) {
+  if (isFullComment(comment)) {
+    console.log(comment.created_by)
+    console.log(comment.created_time)
+    console.log(comment.rich_text)
+  }
+}
+```
+
+## Rich Text Type Guards
+
+For rich text items, use these type guards to determine the content type:
+
+### isTextRichTextItemResponse
+
+```typescript
+function isTextRichTextItemResponse(
+  richText: RichTextItemResponse
+): richText is RichTextItemResponseCommon & TextRichTextItemResponse
+```
+
+**Implementation:** Returns `true` if `richText.type === "text"`.
+
+**Example:**
+
+```typescript src/helpers.ts:247-251
+const page = await notion.pages.retrieve({ page_id: "page-id" })
+
+if (isFullPage(page)) {
+  const titleProp = page.properties.Name
+  if (titleProp.type === "title") {
+    for (const richText of titleProp.title) {
+      if (isTextRichTextItemResponse(richText)) {
+        console.log(richText.text.content)
+        console.log(richText.text.link)
+      }
+    }
+  }
+}
+```
+
+### isEquationRichTextItemResponse
+
+```typescript
+function isEquationRichTextItemResponse(
+  richText: RichTextItemResponse
+): richText is RichTextItemResponseCommon & EquationRichTextItemResponse
+```
+
+**Implementation:** Returns `true` if `richText.type === "equation"`.
+
+**Example:**
+
+```typescript src/helpers.ts:256-260
+for (const richText of content) {
+  if (isEquationRichTextItemResponse(richText)) {
+    console.log("Equation:", richText.equation.expression)
+  }
+}
+```
+
+### isMentionRichTextItemResponse
+
+```typescript
+function isMentionRichTextItemResponse(
+  richText: RichTextItemResponse
+): richText is RichTextItemResponseCommon & MentionRichTextItemResponse
+```
+
+**Implementation:** Returns `true` if `richText.type === "mention"`.
+
+**Example:**
+
+```typescript src/helpers.ts:265-269
+for (const richText of content) {
+  if (isMentionRichTextItemResponse(richText)) {
+    console.log("Mention type:", richText.mention.type)
+    if (richText.mention.type === "user") {
+      console.log("User ID:", richText.mention.user.id)
+    }
+  }
+}
+```
+
+## Combining Type Guards
+
+Type guards work well together for complex filtering:
+
+```typescript
+const searchResults = await notion.search({})
+
+for (const result of searchResults.results) {
+  if (isFullPage(result)) {
+    console.log("Page:", result.url)
+  } else if (isFullDatabase(result)) {
+    console.log("Database:", result.title)
+  }
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always use type guards before accessing full properties">
+    Properties like `url`, `created_time`, and type-specific fields only exist on full objects. Use type guards to avoid runtime errors:
+
+    ```typescript
+    // Bad - might throw error
+    console.log(response.url)
+
+    // Good - type-safe
+    if (isFullPage(response)) {
+      console.log(response.url)
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Type guards enable autocomplete">
+    After using a type guard, TypeScript will provide full autocomplete for the narrowed type, making development easier and catching errors early.
+  </Accordion>
+
+  <Accordion title="Handle both full and partial cases">
+    Always consider what to do when an object is partial:
+
+    ```typescript
+    if (isFullUser(user)) {
+      console.log(user.name)
+    } else {
+      console.log("User details not available")
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Type Definitions
+
+All type guard functions use TypeScript's `is` operator for type predicates, which tells TypeScript to narrow the type in the `if` block:
+
+```typescript
+type ObjectResponse =
+  | PageObjectResponse
+  | PartialPageObjectResponse
+  | DataSourceObjectResponse
+  | PartialDataSourceObjectResponse
+  | DatabaseObjectResponse
+  | PartialDatabaseObjectResponse
+  | BlockObjectResponse
+  | PartialBlockObjectResponse
+```
+
+The type guards check runtime properties to determine which variant you have, giving you type safety at both compile time and runtime.

@@ -1,0 +1,175 @@
+---
+title: "Send file upload"
+description: "Upload file data for a created file upload"
+---
+
+Sends file data to a previously created file upload. This endpoint accepts `multipart/form-data` instead of JSON.
+
+## Method
+
+```typescript
+client.fileUploads.send({
+  file_upload_id: "file_upload_id",
+  file: {
+    data: fileBuffer,
+    filename: "document.pdf"
+  }
+})
+```
+
+## Parameters
+
+<ParamField path="file_upload_id" type="string" required>
+  Identifier for a Notion file upload object, obtained from the `id` of the [Create File Upload](/api/file-uploads/create) response.
+</ParamField>
+
+<ParamField path="file" type="object" required>
+  The file data to upload.
+  
+  <ParamField path="file.data" type="string | Blob" required>
+    Raw file contents as a string, Buffer, Blob, or File object.
+  </ParamField>
+  
+  <ParamField path="file.filename" type="string">
+    Optional filename. Overrides the filename specified in create.
+  </ParamField>
+</ParamField>
+
+<ParamField path="part_number" type="string">
+  Required for multi-part uploads. Stringified integer (e.g., `"1"`, `"2"`, `"3"`) indicating which part is being sent. Must be sequential starting from `"1"` and match the `number_of_parts` specified in create.
+</ParamField>
+
+## Response
+
+Returns an updated [FileUpload object](/api/file-uploads#file-upload-object).
+
+<ResponseField name="status" type="string">
+  Updated status: `"pending"` (for multi-part, more parts needed) or `"uploaded"` (for single-part, or after all parts sent and complete called).
+</ResponseField>
+
+<ResponseField name="number_of_parts" type="object">
+  For multi-part uploads, tracks progress:
+  - `total`: Total number of parts expected
+  - `sent`: Number of parts successfully uploaded
+</ResponseField>
+
+<ResponseField name="file_import_result" type="object">
+  After successful upload, contains import results:
+  - `type`: `"success"` or `"error"`
+  - `imported_time`: ISO 8601 timestamp
+  - `error`: Error details if type is `"error"`
+</ResponseField>
+
+## Examples
+
+### Single-part upload
+
+For files under 20MB, send all data in one request:
+
+```typescript
+import fs from "fs"
+
+// First, create the file upload
+const fileUpload = await client.fileUploads.create({
+  mode: "single_part",
+  filename: "report.pdf",
+  content_type: "application/pdf"
+})
+
+// Then send the file data
+const fileBuffer = fs.readFileSync("./report.pdf")
+
+const result = await client.fileUploads.send({
+  file_upload_id: fileUpload.id,
+  file: {
+    data: fileBuffer,
+    filename: "report.pdf"
+  }
+})
+
+console.log(result.status) // "uploaded"
+```
+
+### Multi-part upload
+
+For files larger than 20MB, split into parts and send sequentially:
+
+```typescript
+import fs from "fs"
+
+const CHUNK_SIZE = 20 * 1024 * 1024 // 20MB per part
+const fileBuffer = fs.readFileSync("./large-video.mp4")
+const totalParts = Math.ceil(fileBuffer.length / CHUNK_SIZE)
+
+// Create the upload
+const fileUpload = await client.fileUploads.create({
+  mode: "multi_part",
+  filename: "large-video.mp4",
+  content_type: "video/mp4",
+  number_of_parts: totalParts
+})
+
+// Send each part sequentially
+for (let i = 0; i < totalParts; i++) {
+  const start = i * CHUNK_SIZE
+  const end = Math.min(start + CHUNK_SIZE, fileBuffer.length)
+  const chunk = fileBuffer.slice(start, end)
+  
+  await client.fileUploads.send({
+    file_upload_id: fileUpload.id,
+    file: {
+      data: chunk,
+      filename: "large-video.mp4"
+    },
+    part_number: String(i + 1) // Must be a string: "1", "2", "3", etc.
+  })
+  
+  console.log(`Sent part ${i + 1} of ${totalParts}`)
+}
+
+// Finally, complete the upload
+await client.fileUploads.complete({
+  file_upload_id: fileUpload.id
+})
+```
+
+### Browser file upload
+
+Using the File API in browsers:
+
+```typescript
+// In a browser environment
+const handleFileUpload = async (file: File) => {
+  // Create the upload
+  const fileUpload = await client.fileUploads.create({
+    mode: "single_part",
+    filename: file.name,
+    content_type: file.type
+  })
+  
+  // Send the file (File object is a type of Blob)
+  const result = await client.fileUploads.send({
+    file_upload_id: fileUpload.id,
+    file: {
+      data: file,
+      filename: file.name
+    }
+  })
+  
+  return result
+}
+```
+
+## Notes
+
+- This endpoint sends HTTP `multipart/form-data` instead of JSON
+- For multi-part uploads, parts must be sent sequentially starting from `"1"`
+- The `part_number` parameter must be a **string**, not a number
+- After sending all parts, call [complete](/api/file-uploads/complete) to finalize the upload
+- File data is passed under the `file.data` property, not as the raw file
+
+## Related
+
+- [Create file upload](/api/file-uploads/create) - Initialize upload
+- [Complete file upload](/api/file-uploads/complete) - Finalize multi-part upload
+- [List file uploads](/api/file-uploads/list) - Track upload status

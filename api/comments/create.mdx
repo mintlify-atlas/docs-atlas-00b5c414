@@ -1,0 +1,132 @@
+---
+title: "Create a comment"
+description: "Creates a comment in a page, block, or discussion thread."
+---
+
+## Method
+
+```typescript
+client.comments.create(args: CreateCommentParameters): Promise<CreateCommentResponse>
+```
+
+## Parameters
+
+<ParamField path="rich_text" type="array" required>
+  An array of [rich text objects](/api/types#rich-text) that represent the content of the comment.
+</ParamField>
+
+<ParamField path="parent" type="object">
+  The parent of the comment. Required if `discussion_id` is not provided.
+  
+  <Expandable title="properties">
+    <ResponseField name="page_id" type="string">
+      The ID of the parent page (with or without dashes).
+    </ResponseField>
+    
+    <ResponseField name="block_id" type="string">
+      The ID of the parent block (with or without dashes).
+    </ResponseField>
+    
+    <ResponseField name="type" type="string">
+      Either `"page_id"` or `"block_id"`.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="discussion_id" type="string">
+  The ID of the discussion thread to comment on. Required if `parent` is not provided.
+</ParamField>
+
+<ParamField path="attachments" type="array">
+  An array of files to attach to the comment. Maximum of 3 allowed.
+  
+  <Expandable title="properties">
+    <ResponseField name="file_upload_id" type="string">
+      ID of a FileUpload object that has the status `"uploaded"`.
+    </ResponseField>
+    
+    <ResponseField name="type" type="string">
+      Always `"file_upload"`.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="display_name" type="object">
+  Display name for the comment.
+  
+  <Expandable title="properties">
+    <ResponseField name="type" type="string">
+      One of: `"integration"`, `"user"`, or `"custom"`.
+    </ResponseField>
+    
+    <ResponseField name="custom" type="object">
+      Required when type is `"custom"`.
+      
+      <Expandable title="properties">
+        <ResponseField name="name" type="string">
+          The custom display name to use.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. If not provided, the client-level auth is used.
+</ParamField>
+
+## Response
+
+Returns a [Comment object](/api/types#comment-object).
+
+<ResponseField name="object" type="string">
+  Always `"comment"`.
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the comment.
+</ResponseField>
+
+<ResponseField name="parent" type="object">
+  The parent of the comment (page or block).
+</ResponseField>
+
+<ResponseField name="discussion_id" type="string">
+  The ID of the discussion thread this comment belongs to.
+</ResponseField>
+
+<ResponseField name="rich_text" type="array">
+  The rich text content of the comment.
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  The time when the comment was created (ISO 8601 format).
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  The time when the comment was last edited (ISO 8601 format).
+</ResponseField>
+
+<ResponseField name="created_by" type="object">
+  The user who created the comment.
+</ResponseField>
+
+## Example
+
+```typescript
+const comment = await client.comments.create({
+  parent: {
+    page_id: "page-id-123",
+  },
+  rich_text: [
+    {
+      type: "text",
+      text: {
+        content: "This is a comment",
+      },
+    },
+  ],
+})
+
+console.log(comment.id)
+```

@@ -1,122 +1,168 @@
 {
   "$schema": "https://mintlify.com/docs.json",
+  "name": "Notion SDK for JavaScript",
   "theme": "mint",
-  "name": "Mint Starter Kit",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#040404",
+    "light": "#7c7c7c",
+    "dark": "#c8c8c8"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://media.brand.dev/7a2f2d65-6614-4091-a5bf-f6201e348a9c.png",
+  "logo": {
+    "light": "https://media.brand.dev/e942da4c-7478-4d82-a2db-077749ea684b.svg",
+    "dark": "https://media.brand.dev/e942da4c-7478-4d82-a2db-077749ea684b.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/makenotion/notion-sdk-js"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/makenotion/notion-sdk-js"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
+              "installation",
               "quickstart",
-              "development"
+              "authentication"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/client",
+              "concepts/error-handling",
+              "concepts/retries",
+              "concepts/logging",
+              "concepts/typescript"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "guides/pagination",
+              "guides/type-guards",
+              "guides/custom-requests",
+              "guides/oauth",
+              "guides/file-uploads"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Migration",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "migration/upgrading",
+              "migration/api-versions"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Client",
             "pages": [
-              "api-reference/introduction"
+              "api/client",
+              "api/client-options"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Blocks",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/blocks/retrieve",
+              "api/blocks/update",
+              "api/blocks/delete",
+              "api/blocks/children"
+            ]
+          },
+          {
+            "group": "Pages",
+            "pages": [
+              "api/pages/create",
+              "api/pages/retrieve",
+              "api/pages/update",
+              "api/pages/move",
+              "api/pages/properties",
+              "api/pages/markdown"
+            ]
+          },
+          {
+            "group": "Databases",
+            "pages": [
+              "api/databases/create",
+              "api/databases/retrieve",
+              "api/databases/update",
+              "api/databases/query"
+            ]
+          },
+          {
+            "group": "Data Sources",
+            "pages": [
+              "api/data-sources/create",
+              "api/data-sources/retrieve",
+              "api/data-sources/update",
+              "api/data-sources/query"
+            ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api/users/retrieve",
+              "api/users/list",
+              "api/users/me"
+            ]
+          },
+          {
+            "group": "Comments",
+            "pages": [
+              "api/comments/create",
+              "api/comments/retrieve",
+              "api/comments/list"
+            ]
+          },
+          {
+            "group": "File Uploads",
+            "pages": [
+              "api/file-uploads/create",
+              "api/file-uploads/send",
+              "api/file-uploads/complete",
+              "api/file-uploads/list"
+            ]
+          },
+          {
+            "group": "Search & OAuth",
+            "pages": [
+              "api/search",
+              "api/oauth"
+            ]
+          },
+          {
+            "group": "Helpers",
+            "pages": [
+              "api/helpers/pagination",
+              "api/helpers/type-guards",
+              "api/helpers/id-extraction"
+            ]
+          },
+          {
+            "group": "Errors",
+            "pages": [
+              "api/errors/error-types",
+              "api/errors/error-codes"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

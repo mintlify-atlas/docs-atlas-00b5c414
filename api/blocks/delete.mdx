@@ -1,0 +1,259 @@
+---
+title: Delete a Block
+description: Delete a block by moving it to trash or permanently removing it
+---
+
+Deletes a block by setting its `in_trash` property to `true`. Deleting a block also affects its children - they will inherit the parent's trash status.
+
+## Method Signature
+
+```typescript
+client.blocks.delete(args: DeleteBlockParameters): Promise<DeleteBlockResponse>
+```
+
+Source: [Client.ts:613-624](/home/daytona/workspace/source/src/Client.ts#L613-L624)
+
+## Parameters
+
+<ParamField path="block_id" type="string" required>
+  The ID of the block to delete
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Optional authentication token to override the client-level auth
+</ParamField>
+
+## Response
+
+Returns the deleted block as a `BlockObjectResponse` or `PartialBlockObjectResponse` with `in_trash` set to `true`.
+
+<ResponseField name="object" type="string">
+  Always `"block"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The block ID
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  Always `true` after deletion
+</ResponseField>
+
+<ResponseField name="archived" type="boolean">
+  Archived status of the block
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  Timestamp when the block was deleted
+</ResponseField>
+
+<ResponseField name="last_edited_by" type="PartialUserObjectResponse">
+  User who deleted the block
+</ResponseField>
+
+## Examples
+
+### Delete a Block
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN })
+
+const deletedBlock = await notion.blocks.delete({
+  block_id: "your-block-id",
+})
+
+console.log("Block deleted:", deletedBlock.in_trash) // true
+console.log("Deleted at:", deletedBlock.last_edited_time)
+```
+
+### Delete Multiple Blocks
+
+```typescript
+const blockIds = ["block-id-1", "block-id-2", "block-id-3"]
+
+const deletePromises = blockIds.map(block_id =>
+  notion.blocks.delete({ block_id })
+)
+
+const deletedBlocks = await Promise.all(deletePromises)
+console.log(`Deleted ${deletedBlocks.length} blocks`)
+```
+
+### Delete with Confirmation
+
+```typescript
+async function deleteBlockSafely(blockId: string) {
+  // First, retrieve the block to confirm what we're deleting
+  const block = await notion.blocks.retrieve({ block_id: blockId })
+  
+  console.log(`About to delete ${block.type} block (ID: ${block.id})`)
+  
+  if (block.has_children) {
+    console.warn("Warning: This block has children that will also be deleted")
+  }
+  
+  // Proceed with deletion
+  const deleted = await notion.blocks.delete({ block_id: blockId })
+  return deleted
+}
+
+await deleteBlockSafely("your-block-id")
+```
+
+### Delete and Log Details
+
+```typescript
+const block = await notion.blocks.delete({
+  block_id: "your-block-id",
+})
+
+if (block.in_trash) {
+  console.log("Successfully deleted:")
+  console.log("  Block ID:", block.id)
+  console.log("  Block type:", block.type)
+  console.log("  Deleted by:", block.last_edited_by)
+  console.log("  Deleted at:", block.last_edited_time)
+}
+```
+
+### Conditional Deletion
+
+```typescript
+// Only delete if block meets certain criteria
+const block = await notion.blocks.retrieve({ block_id: "your-block-id" })
+
+if (block.type === "paragraph" && block.archived) {
+  // Only delete archived paragraphs
+  await notion.blocks.delete({ block_id: block.id })
+  console.log("Deleted archived paragraph")
+} else {
+  console.log("Block does not meet deletion criteria")
+}
+```
+
+## Restoring Deleted Blocks
+
+You can restore a deleted block by updating its `in_trash` property:
+
+```typescript
+// First delete the block
+await notion.blocks.delete({ block_id: "your-block-id" })
+
+// Later, restore it from trash
+const restored = await notion.blocks.update({
+  block_id: "your-block-id",
+  in_trash: false,
+})
+
+console.log("Block restored:", !restored.in_trash)
+```
+
+## Important Notes
+
+<Note>
+Deleting a block with children will also move all child blocks to trash. Child blocks inherit the parent's trash status.
+</Note>
+
+<Warning>
+Blocks in trash can be permanently deleted by Notion's system after 30 days. To restore a block, use the [update endpoint](/api/blocks/update) before permanent deletion occurs.
+</Warning>
+
+<Info>
+Deleting a child page or child database block will move the entire page or database and its contents to trash.
+</Info>
+
+## Error Handling
+
+```typescript
+import { APIResponseError } from "@notionhq/client"
+
+try {
+  const deleted = await notion.blocks.delete({
+    block_id: "your-block-id",
+  })
+  console.log("Block deleted successfully")
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    switch (error.code) {
+      case "object_not_found":
+        console.error("Block not found or already deleted")
+        break
+      case "unauthorized":
+        console.error("Not authorized to delete this block")
+        break
+      case "validation_error":
+        console.error("Invalid block ID format")
+        break
+      default:
+        console.error("API error:", error.code, error.message)
+    }
+  } else {
+    console.error("Unexpected error:", error)
+  }
+}
+```
+
+## Bulk Deletion with Error Handling
+
+```typescript
+async function deleteManyBlocks(blockIds: string[]) {
+  const results = await Promise.allSettled(
+    blockIds.map(block_id => notion.blocks.delete({ block_id }))
+  )
+
+  const successful = results.filter(r => r.status === "fulfilled")
+  const failed = results.filter(r => r.status === "rejected")
+
+  console.log(`Successfully deleted: ${successful.length}/${blockIds.length}`)
+  
+  if (failed.length > 0) {
+    console.error(`Failed to delete ${failed.length} blocks:`)
+    failed.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error(`  Block ${blockIds[index]}: ${result.reason}`)
+      }
+    })
+  }
+
+  return { successful: successful.length, failed: failed.length }
+}
+
+const result = await deleteManyBlocks([
+  "block-id-1",
+  "block-id-2",
+  "block-id-3",
+])
+```
+
+## Differences from Archive
+
+Deletion (`in_trash: true`) and archival (`archived: true`) are different:
+
+```typescript
+// Archive a block (soft delete, easily reversible)
+await notion.blocks.update({
+  block_id: "your-block-id",
+  archived: true,
+})
+
+// Delete a block (moves to trash, auto-deleted after 30 days)
+await notion.blocks.delete({
+  block_id: "your-block-id",
+})
+```
+
+<AccordionGroup>
+  <Accordion title="When to use archived vs in_trash">
+    - **Archive** (`archived: true`) - Use for blocks you want to hide but keep indefinitely. Archived blocks stay archived until manually unarchived.
+    - **Delete** (`in_trash: true`) - Use for blocks you intend to permanently remove. Trashed blocks are auto-deleted after 30 days.
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+- [Update a Block](/api/blocks/update) - Restore blocks from trash
+- [Retrieve a Block](/api/blocks/retrieve)
+- [Append Block Children](/api/blocks/children)
+- [Error Handling Guide](/concepts/error-handling)

@@ -1,0 +1,150 @@
+---
+title: 'dataSources.retrieve'
+description: 'Retrieve a data source by ID'
+---
+
+## Method
+
+```typescript
+client.dataSources.retrieve(parameters: GetDataSourceParameters): Promise<DataSourceObjectResponse | PartialDataSourceObjectResponse>
+```
+
+Retrieves a data source object using its ID.
+
+## Parameters
+
+<ParamField path="data_source_id" type="string" required>
+  The ID of the data source to retrieve (with or without dashes)
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. Overrides the client-level auth if provided.
+</ParamField>
+
+## Response
+
+Returns a `DataSourceObjectResponse` or `PartialDataSourceObjectResponse`.
+
+<ResponseField name="object" type="string">
+  Always `"data_source"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The unique identifier of the data source
+</ResponseField>
+
+<ResponseField name="title" type="RichTextItemResponse[]">
+  The title of the data source
+</ResponseField>
+
+<ResponseField name="description" type="RichTextItemResponse[]">
+  The description of the data source
+</ResponseField>
+
+<ResponseField name="parent" type="object">
+  The parent of the data source. Can be a database or another data source.
+  
+  <ResponseField name="parent.type" type="string">
+    Either `"database_id"` or `"data_source_id"`
+  </ResponseField>
+  
+  <ResponseField name="parent.database_id" type="string">
+    The ID of the parent database (when type is `database_id`)
+  </ResponseField>
+  
+  <ResponseField name="parent.data_source_id" type="string">
+    The ID of the parent data source (when type is `data_source_id`)
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="database_parent" type="object">
+  The parent of the data source's containing database. This is typically a page, block, or workspace.
+</ResponseField>
+
+<ResponseField name="properties" type="Record<string, DatabasePropertyConfigResponse>">
+  The property schema of the data source
+</ResponseField>
+
+<ResponseField name="is_inline" type="boolean">
+  Whether the data source is inline
+</ResponseField>
+
+<ResponseField name="archived" type="boolean">
+  Whether the data source is archived
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  Whether the data source is in the trash
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  ISO 8601 timestamp when the data source was created
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the data source was last edited
+</ResponseField>
+
+<ResponseField name="created_by" type="PartialUserObjectResponse">
+  The user who created the data source
+</ResponseField>
+
+<ResponseField name="last_edited_by" type="PartialUserObjectResponse">
+  The user who last edited the data source
+</ResponseField>
+
+<ResponseField name="icon" type="PageIconResponse | null">
+  The icon of the data source
+</ResponseField>
+
+<ResponseField name="cover" type="PageCoverResponse | null">
+  The cover image of the data source
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The Notion URL of the data source
+</ResponseField>
+
+<ResponseField name="public_url" type="string | null">
+  The public URL of the data source if it is publicly accessible
+</ResponseField>
+
+## Example
+
+```typescript
+import { Client } from "@notionhq/client"
+
+const notion = new Client({ auth: process.env.NOTION_API_KEY })
+
+const dataSource = await notion.dataSources.retrieve({
+  data_source_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+})
+
+console.log("Data Source:", dataSource.title)
+console.log("Properties:", Object.keys(dataSource.properties))
+console.log("Created:", dataSource.created_time)
+```
+
+## Error Handling
+
+```typescript
+try {
+  const dataSource = await notion.dataSources.retrieve({
+    data_source_id: "invalid-id"
+  })
+} catch (error) {
+  if (error.code === "object_not_found") {
+    console.error("Data source not found")
+  } else if (error.code === "unauthorized") {
+    console.error("No access to this data source")
+  } else {
+    console.error("Error retrieving data source:", error.message)
+  }
+}
+```
+
+## Related Methods
+
+- [dataSources.create](/api/data-sources/create) - Create a new data source
+- [dataSources.update](/api/data-sources/update) - Update a data source
+- [dataSources.query](/api/data-sources/query) - Query pages from a data source

@@ -1,0 +1,259 @@
+---
+title: pages.retrieve
+description: Retrieve an existing page by ID
+---
+
+Retrieves a page object using the specified ID. Returns either a full page object or a partial page object, depending on the integration's permissions.
+
+## Method Signature
+
+```typescript
+notion.pages.retrieve(args: GetPageParameters): Promise<PageObjectResponse | PartialPageObjectResponse>
+```
+
+## Parameters
+
+<ParamField path="page_id" type="string" required>
+  The ID of the page to retrieve (with or without dashes).
+  
+  Example: `"897e5a76-ae52-4b48-9fdf-e71f5945d1af"` or `"897e5a76ae524b489fdfe71f5945d1af"`
+</ParamField>
+
+<ParamField path="filter_properties" type="array">
+  An array of property IDs to filter the response. Only the specified properties will be included in the response.
+  
+  Note: If a page doesn't have a property, it won't be included in the filtered response.
+  
+  Example: `["title", "abc123", "def456"]`
+</ParamField>
+
+<ParamField path="auth" type="string">
+  Bearer token for authentication. Overrides the client-level authentication.
+</ParamField>
+
+## Response
+
+<ResponseField name="object" type="string">
+  Always `"page"`
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The ID of the page
+</ResponseField>
+
+<ResponseField name="created_time" type="string">
+  ISO 8601 timestamp when the page was created
+</ResponseField>
+
+<ResponseField name="last_edited_time" type="string">
+  ISO 8601 timestamp when the page was last edited
+</ResponseField>
+
+<ResponseField name="archived" type="boolean">
+  Whether the page is archived
+</ResponseField>
+
+<ResponseField name="in_trash" type="boolean">
+  Whether the page is in trash
+</ResponseField>
+
+<ResponseField name="is_locked" type="boolean">
+  Whether the page is locked from editing in the Notion app UI
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The URL of the Notion page
+</ResponseField>
+
+<ResponseField name="public_url" type="string | null">
+  The public URL if the page has been published to the web, otherwise `null`
+</ResponseField>
+
+<ResponseField name="parent" type="object">
+  Information about the page's parent (database, page, workspace, or block)
+</ResponseField>
+
+<ResponseField name="properties" type="object">
+  Property values of the page. Each property is keyed by its name and contains type-specific data.
+</ResponseField>
+
+<ResponseField name="icon" type="object | null">
+  Page icon (emoji, external URL, file, or custom emoji)
+</ResponseField>
+
+<ResponseField name="cover" type="object | null">
+  Page cover image (external URL or file)
+</ResponseField>
+
+<ResponseField name="created_by" type="object">
+  User who created the page
+</ResponseField>
+
+<ResponseField name="last_edited_by" type="object">
+  User who last edited the page
+</ResponseField>
+
+## Examples
+
+### Basic Page Retrieval
+
+```typescript
+const page = await notion.pages.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+})
+
+console.log("Page title:", page.properties.Name.title[0].plain_text)
+console.log("Created:", page.created_time)
+console.log("URL:", page.url)
+```
+
+### Retrieve with Property Filtering
+
+Filter the response to only include specific properties:
+
+```typescript
+const page = await notion.pages.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+  filter_properties: ["title", "abc123", "def456"],
+})
+
+// Only the filtered properties will be present in page.properties
+```
+
+### Type-Safe Property Access
+
+```typescript
+import { isFullPage } from "@notionhq/client"
+
+const response = await notion.pages.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+})
+
+// Use type guard to access full page properties
+if (isFullPage(response)) {
+  console.log("Page URL:", response.url)
+  console.log("Is locked:", response.is_locked)
+  
+  // Access properties with type safety
+  const titleProp = response.properties.Name
+  if (titleProp.type === "title") {
+    console.log("Title:", titleProp.title[0]?.plain_text)
+  }
+} else {
+  // Partial page - limited access
+  console.log("Page ID:", response.id)
+}
+```
+
+### Extract Page ID from URL
+
+Use the helper function to extract a page ID from a Notion URL:
+
+```typescript
+import { extractPageId } from "@notionhq/client"
+
+const pageUrl = "https://notion.so/My-Page-897e5a76ae524b489fdfe71f5945d1af"
+const pageId = extractPageId(pageUrl)
+
+const page = await notion.pages.retrieve({
+  page_id: pageId,
+})
+```
+
+### Access Different Property Types
+
+```typescript
+const page = await notion.pages.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+})
+
+if (isFullPage(page)) {
+  // Title property
+  const titleProp = page.properties.Name
+  if (titleProp.type === "title") {
+    console.log("Title:", titleProp.title[0]?.plain_text)
+  }
+  
+  // Select property
+  const statusProp = page.properties.Status
+  if (statusProp.type === "select") {
+    console.log("Status:", statusProp.select?.name)
+  }
+  
+  // Date property
+  const dateProp = page.properties["Due Date"]
+  if (dateProp.type === "date") {
+    console.log("Due:", dateProp.date?.start)
+  }
+  
+  // Checkbox property
+  const checkboxProp = page.properties.Completed
+  if (checkboxProp.type === "checkbox") {
+    console.log("Completed:", checkboxProp.checkbox)
+  }
+  
+  // People property
+  const peopleProp = page.properties.Assignee
+  if (peopleProp.type === "people") {
+    console.log("Assigned to:", peopleProp.people.length, "people")
+  }
+}
+```
+
+### Check Page Metadata
+
+```typescript
+const page = await notion.pages.retrieve({
+  page_id: "897e5a76-ae52-4b48-9fdf-e71f5945d1af",
+})
+
+if (isFullPage(page)) {
+  console.log("Archived:", page.archived)
+  console.log("In trash:", page.in_trash)
+  console.log("Locked:", page.is_locked)
+  console.log("Public URL:", page.public_url || "Not published")
+  
+  // Check parent type
+  if (page.parent.type === "database_id") {
+    console.log("Parent database:", page.parent.database_id)
+  } else if (page.parent.type === "page_id") {
+    console.log("Parent page:", page.parent.page_id)
+  }
+}
+```
+
+## Error Handling
+
+```typescript
+import { APIResponseError, APIErrorCode } from "@notionhq/client"
+
+try {
+  const page = await notion.pages.retrieve({
+    page_id: "invalid-id",
+  })
+} catch (error) {
+  if (APIResponseError.isAPIResponseError(error)) {
+    if (error.code === APIErrorCode.ObjectNotFound) {
+      console.error("Page not found or no access")
+    } else if (error.code === APIErrorCode.Unauthorized) {
+      console.error("Invalid or missing authentication")
+    } else {
+      console.error("API error:", error.message)
+    }
+  } else {
+    console.error("Unexpected error:", error)
+  }
+}
+```
+
+## Related Methods
+
+- [pages.create](/api/pages/create) - Create a new page
+- [pages.update](/api/pages/update) - Update page properties
+- [pages.properties.retrieve](/api/pages/properties) - Retrieve a specific page property
+
+## See Also
+
+- [Notion API: Retrieve a page](https://developers.notion.com/reference/retrieve-a-page)
+- [Type guards](/guides/type-guards) - Using type guards with responses
+- [Error handling](/concepts/error-handling) - Handling API errors
